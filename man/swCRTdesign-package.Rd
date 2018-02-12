@@ -13,8 +13,8 @@ This package includes functions for the design and analysis of stepped wedge clu
 \tabular{ll}{
 Package: \tab swCRTdesign\cr
 Type: \tab Package\cr
-Version: \tab 2.1\cr
-Date: \tab 2015-04-16\cr
+Version: \tab 2.2\cr
+Date: \tab 2018-02-04\cr
 License: \tab GPL (>= 2)\cr
 }
 %~~ An overview of how to use the package, including the most important functions ~~

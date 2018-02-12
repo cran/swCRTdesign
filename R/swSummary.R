@@ -1,5 +1,5 @@
 swSummary <-
-function (response.var, tx.var, time.var, cluster.var, data, 
+function (response.var, tx.var, time.var, cluster.var, data=NULL, 
     type = "mean", digits = 16, fcn.Call = FALSE) 
 {
     if (!is.null(data) & !fcn.Call) {
@@ -40,7 +40,7 @@ function (response.var, tx.var, time.var, cluster.var, data,
         tmpWave <- c(tmpWave, sum(tmpPreWave))
     }
 tmpWaveMat <- cbind(1:length(unique(tmpWave)), as.vector(table(tmpWave)) )
-tmpWave <- unlist( apply(tmpWaveMat, 1, function(z) rep(z[1], each=z[2])) )
+tmpWave <- as.vector( unlist( apply(tmpWaveMat, 1, function(z) rep(z[1], each=z[2])) ) )
     tmpClusterWave <- cbind(tmpCluster, tmpWave)
     df$wave <- df$cluster
     for (clusterID in tmpCluster) {
