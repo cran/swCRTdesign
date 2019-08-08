@@ -1,9 +1,9 @@
-swPlot <-
-function(response.var, tx.var, time.var, cluster.var, data, choose.mfrow=NULL, by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", choose.main=NULL, choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, choose.ncol=2, choose.tx.pos="topright", choose.legend.pos=locator(1))
+swPlot <- function(response.var, tx.var, time.var, cluster.var, data, choose.mfrow=NULL, by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", choose.main=NULL, choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, choose.ncol=2, choose.tx.pos="topright", choose.legend.pos="right")
 {
-## (v.2014.04.29)
+
+## (v.2014.04.29); updated 8/5/2019 for v. 3.0
 swSummaryFcnCall <- swSummary(response.var=substitute(response.var), tx.var=substitute(tx.var), time.var=substitute(time.var), cluster.var=substitute(cluster.var), data=data, type="mean", digits=16, fcn.Call=TRUE)
-swDsnTmp <- swSummaryFcnCall$swDsn 
+swDsnTmp <- swSummaryFcnCall$swDsn
 ##
 if( is.null(choose.tx.col) ) {
 	## This line of could should be the same as the following line; however, I created 'swDsnTmp' for most of the remaining code ----> 	uniqueTx <- sort( unique(as.vector(swSummaryFcnCall$swDsn)), decreasing=FALSE )
@@ -50,7 +50,7 @@ if( by.wave==TRUE ) {
 		plot(0,0, type="n", xlim=c(sw.xMin.Wave, sw.xMax.Wave), ylim=c(sw.yMin.Wave, sw.yMax.Wave), xaxt="n", xlab=choose.xlab, ylab="Mean Response", main=choose.main)
 		axis(1, at=c(swSummaryFcnCall$time.at.each.wave), labels=c(swSummaryFcnCall$time.at.each.wave))
 		for( i in 1:dim(swMeanResponse.Wave)[1] ){
-			lines( swSummaryFcnCall$time.at.each.wave, swMeanResponse.Wave[i,], lty=1, col="grey" )	
+			lines( swSummaryFcnCall$time.at.each.wave, swMeanResponse.Wave[i,], lty=1, col="grey" )
 		}
 		if( is.null(choose.pch) ) choose.pch <- c( 0:(swSummaryFcnCall$n.waves - 1) )
 #*# need warning message if choose.pch-vector is NOT of length equal to total number of waves, then need to fix issue.....
@@ -74,7 +74,12 @@ if( by.wave==TRUE ) {
 ##
 		legend( choose.tx.pos, c("Tx:", uniqueTx), text.col=c("black", uniqueTxColors), ncol=(1 + length(uniqueTx)), x.intersp=0.01, xjust=1, y.intersp=0.5, cex=0.9)
 		##
-		if(!is.null(choose.legend.pos)) legend( choose.legend.pos, legend=1:swSummaryFcnCall$n.waves, col="black", pch=choose.pch, ncol=choose.ncol, title="Wave" )
+		if(!is.null(choose.legend.pos) && choose.legend.pos == "mouseclick"){
+		  cat("Click on plot to add a legend\n")
+		  #utils::flush.console()#If there are difficulties with printing the message at the appropriate time, this may be turned on.
+		  legend( locator(1), legend=1:swSummaryFcnCall$n.waves, col="black", pch=choose.pch, ncol=choose.ncol, title="Wave" )
+		}
+		else if(!is.null(choose.legend.pos)) legend( choose.legend.pos, legend=1:swSummaryFcnCall$n.waves, col="black", pch=choose.pch, ncol=choose.ncol, title="Wave" )
 	}
 	###*********************************************
 	###
@@ -89,8 +94,8 @@ if( by.wave==TRUE ) {
 			else if( swSummaryFcnCall$n.waves==3 | swSummaryFcnCall$n.waves==4 ){ choose.mfrow <- c(2,2) }
 			else if( swSummaryFcnCall$n.waves==5 | swSummaryFcnCall$n.waves==6 ){ choose.mfrow <- c(2,3) }
 			else if( swSummaryFcnCall$n.waves==7 | swSummaryFcnCall$n.waves==8 ){ choose.mfrow <- c(2,4) }
-			else if( swSummaryFcnCall$n.waves==9 ){ choose.mfrow <- c(3,3) }			
-			else if( swSummaryFcnCall$n.waves>=10 | swSummaryFcnCall$n.waves<=12 ){ choose.mfrow <- c(3,4) }		
+			else if( swSummaryFcnCall$n.waves==9 ){ choose.mfrow <- c(3,3) }
+			else if( swSummaryFcnCall$n.waves>=10 | swSummaryFcnCall$n.waves<=12 ){ choose.mfrow <- c(3,4) }
 		}
 		par( mfrow=choose.mfrow )
 		##
@@ -101,7 +106,7 @@ if( by.wave==TRUE ) {
 			plot(0,0, type="n", xlim=c(sw.xMin.Wave, sw.xMax.Wave), ylim=c(sw.yMin.Wave, sw.yMax.Wave), xaxt="n", xlab=choose.xlab, ylab="Mean Response", main=paste("Wave ", plot.indx, sep=""))
 			axis(1, at=c(swSummaryFcnCall$time.at.each.wave), labels=c(swSummaryFcnCall$time.at.each.wave))
 			##
-			lines( swSummaryFcnCall$time.at.each.wave, swMeanResponse.Wave[plot.indx,], lty=1, col="grey" )	
+			lines( swSummaryFcnCall$time.at.each.wave, swMeanResponse.Wave[plot.indx,], lty=1, col="grey" )
 			##
 			###**************************************************************************************************************************
 			###**************************************************************************************************************************
@@ -148,7 +153,7 @@ else if( by.wave == FALSE ){
 		axis(1, at=c(swSummaryFcnCall$time.at.each.wave), labels=c(swSummaryFcnCall$time.at.each.wave))
 		##
 		for( i in 1:dim(swMeanResponse.Cluster)[1] ){
-			lines( swSummaryFcnCall$time.at.each.wave, swMeanResponse.Cluster[i,], lty=1, col="grey" )	
+			lines( swSummaryFcnCall$time.at.each.wave, swMeanResponse.Cluster[i,], lty=1, col="grey" )
 		}
 		##
 #*# need to modify warning message(s) for choose.col????
@@ -169,12 +174,17 @@ else if( by.wave == FALSE ){
 ###**************************************************************************************************************************
 ###**************************************************************************************************************************
 		##
-		custom.legend.vals <- cbind( cumsum(swSummaryFcnCall$clusters) - swSummaryFcnCall$clusters + 1, cumsum(swSummaryFcnCall$clusters), 1:swSummaryFcnCall$n.waves )	
+		custom.legend.vals <- cbind( cumsum(swSummaryFcnCall$clusters) - swSummaryFcnCall$clusters + 1, cumsum(swSummaryFcnCall$clusters), 1:swSummaryFcnCall$n.waves )
 		custom.legend <- apply( custom.legend.vals, 1, function(z){ paste(z[1], ":", z[2], " (", z[3], ")", sep="") })
 		##
 		legend( choose.tx.pos, c("Tx:", uniqueTx), text.col=c("black", uniqueTxColors), ncol=(1 + length(uniqueTx)), x.intersp=0.01, xjust=1, y.intersp=0.5, cex=0.9)
 		##
-		if(!is.null(choose.legend.pos)) legend( choose.legend.pos, legend=custom.legend, col="black", ncol=choose.ncol, title="Cluster (Wave)" )
+		if(!is.null(choose.legend.pos) && choose.legend.pos == "mouseclick"){
+		  cat("Click on plot to add a legend\n")
+		  #utils::flush.console()
+		  legend( locator(1), legend=custom.legend, col="black", ncol=choose.ncol, title="Cluster (Wave)" )
+		}
+		else if(!is.null(choose.legend.pos)) legend( choose.legend.pos, legend=custom.legend, col="black", ncol=choose.ncol, title="Cluster (Wave)" )
 	}
 	###*********************************************
 	###
@@ -189,26 +199,26 @@ else if( by.wave == FALSE ){
 			else if( swSummaryFcnCall$n.waves==3 | swSummaryFcnCall$n.waves==4 ){ choose.mfrow <- c(2,2) }
 			else if( swSummaryFcnCall$n.waves==5 | swSummaryFcnCall$n.waves==6 ){ choose.mfrow <- c(2,3) }
 			else if( swSummaryFcnCall$n.waves==7 | swSummaryFcnCall$n.waves==8 ){ choose.mfrow <- c(2,4) }
-			else if( swSummaryFcnCall$n.waves==9 ){ choose.mfrow <- c(3,3) }			
-			else if( swSummaryFcnCall$n.waves>=10 | swSummaryFcnCall$n.waves<=12 ){ choose.mfrow <- c(3,4) }		
+			else if( swSummaryFcnCall$n.waves==9 ){ choose.mfrow <- c(3,3) }
+			else if( swSummaryFcnCall$n.waves>=10 | swSummaryFcnCall$n.waves<=12 ){ choose.mfrow <- c(3,4) }
 		}
 		par( mfrow=choose.mfrow )
 		##
 #*# need to modify warning message(s) for choose.col????
 		##
-		custom.main.vals <- cbind( cumsum(swSummaryFcnCall$clusters) - swSummaryFcnCall$clusters + 1, cumsum(swSummaryFcnCall$clusters), 1:swSummaryFcnCall$n.waves )	
+		custom.main.vals <- cbind( cumsum(swSummaryFcnCall$clusters) - swSummaryFcnCall$clusters + 1, cumsum(swSummaryFcnCall$clusters), 1:swSummaryFcnCall$n.waves )
 		##
 		for( plot.indx in 1:swSummaryFcnCall$n.waves ){
 			##
 			if( custom.main.vals[plot.indx, 2] - custom.main.vals[plot.indx, 1] < 2 ) {
-				choose.main <- paste( "Wave ", custom.main.vals[plot.indx, 3], ", Cluster ", custom.main.vals[plot.indx, 1], "-", custom.main.vals[plot.indx, 2], sep="" )	
+				choose.main <- paste( "Wave ", custom.main.vals[plot.indx, 3], ", Cluster ", custom.main.vals[plot.indx, 1], "-", custom.main.vals[plot.indx, 2], sep="" )
 			}else { choose.main <- paste( "Wave ", custom.main.vals[plot.indx, 3], ", Clusters ", custom.main.vals[plot.indx, 1], "-", custom.main.vals[plot.indx, 2], sep="" ) }
 			##
 			plot(0,0, type="n", xlim=c(sw.xMin.Cluster, sw.xMax.Cluster), ylim=c(sw.yMin.Cluster - (sw.yMin.Cluster/10), sw.yMax.Cluster + (sw.yMin.Cluster/10)), xaxt="n", xlab=choose.xlab, ylab="Mean Response", main=choose.main)
 			axis(1, at=c(swSummaryFcnCall$time.at.each.wave), labels=c(swSummaryFcnCall$time.at.each.wave))
 			##
 			for( i in custom.main.vals[plot.indx, 1]:custom.main.vals[plot.indx, 2] ) {
-				lines( swSummaryFcnCall$time.at.each.wave, swMeanResponse.Cluster[i,], lty=1, col="grey" )				
+				lines( swSummaryFcnCall$time.at.each.wave, swMeanResponse.Cluster[i,], lty=1, col="grey" )
 			}
 			##
 			###**************************************************************************************************************************

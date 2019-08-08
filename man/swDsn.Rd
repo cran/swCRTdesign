@@ -5,7 +5,7 @@
 Study design of Stepped Wedge Cluster Randomized Trial (SW CRT)
 }
 \description{
-\code{swDsn} returns a SW CRT study design object based on a repeated cross-sectional sampling scheme. All clusters that start the intervention at a given time point are collectively referred to as a wave. There many be a variable number of clusters in each wave. By default, all clusters are assumed to start in the control condition. Fractional treatment effect may be specified for each time after the intervention is introduced. Additional observations may be added to the end of the trial after the intervention has been introduced in all clusters. \code{swDsn} is used by other functions in this package.
+\code{swDsn} returns a SW CRT study design object based on a repeated cross-sectional sampling scheme. All clusters that start the intervention at a given time point are collectively referred to as a wave or sequence. There many be a variable number of clusters in each wave. By default, all clusters are assumed to start in the control condition. Fractional treatment effect may be specified for each time after the intervention is introduced. Additional observations may be added to the end of the trial after the intervention has been introduced in all clusters. \code{swDsn} is used by other functions in this package.
 }
 \usage{
 swDsn(clusters, tx.effect = 1, extra.time = 0, all.ctl.time0 = TRUE)
@@ -22,7 +22,7 @@ numeric (scalar or vector): Fractional treatment effect upon crossing over from 
 integer (scalar): Number of additional time steps beyond the standard SW CRT design (standard + extended times corresponds to total time). The default value is 0.
 }
   \item{all.ctl.time0}{
-logical: If \code{TRUE}, all clusters receive control at time 0. If \code{FALSE}, clusters in the first wave (i.e., the first element of \code{clusters}) receive intervention at time 0. The default is \code{TRUE}.
+logical: If \code{TRUE}, all clusters receive control at the first time point. If \code{FALSE}, clusters in the first wave (i.e., the first element of \code{clusters}) receive intervention at the first time. The default is \code{TRUE}.
 }
 }
 %\details{
@@ -31,28 +31,28 @@ logical: If \code{TRUE}, all clusters receive control at time 0. If \code{FALSE}
 \value{
 numeric (list): Returns the following user-specified and computed objects
 %% *****SPECIFY WHAT THESE ARE!!!!!**********
-	\item{swDsn}{ 
+	\item{swDsn}{
 		numeric (matrix):  schematic representation of the specified SW CRT design. Number of clusters is equal to the number of rows of the matrix and number of time intervals is equal to the number of columns of the matrix. \code{swDsn[i,j]} gives the intervention status for cluster \code{i} at time \code{j} and has possible values 0 (control), 1 (intervention) or a fractional value as specified by \code{tx.effect}.
 	}
-	\item{swDsn.unique.clusters}{  
+	\item{swDsn.unique.clusters}{
 		numeric (matrix): Truncated SW CRT design of interest, with one row for each wave.
 	}
-	\item{n.waves}{  
+	\item{n.waves}{
 		numeric (scalar): Number of waves for the SW CRT design of interest.
 	}
-	\item{clusters}{  
+	\item{clusters}{
 		numeric (vector): Number of clusters changing from control to intervention at each wave for the SW CRT design of interest.
 	}
-	\item{n.clusters}{  
+	\item{n.clusters}{
 		numeric (scalar): Total number of clusters for the SW CRT design of interest.
 	}
-	\item{tx.effect}{  
+	\item{tx.effect}{
 		numeric (scalar or vector): Fractional treatment effect for time points upon crossing over from control of SW CRT design of interest.
 	}
-	\item{total.time}{  
+	\item{total.time}{
 		numeric (scalar): Total number of time points for the SW CRT design of interest.
 	}
-	\item{extra.time}{  
+	\item{extra.time}{
 		numeric (matrix): Number of time points added on to the standard SW CRT time points for the user-specified values (i.e., extending the trial).
 	}
 }
@@ -98,7 +98,7 @@ swDsn.Ex1.extend.unequal <- swDsn( clusters=c(3,0,2), extra.time=2 )
 swDsn.Ex1.extend.unequal$swDsn
 
 # Example 7 (Unequal clusters per wave, extended SW design)
-swDsn.Ex1.extend.unequal.varyTxEffect <- swDsn( clusters=c(3,0,2), tx.effect=c(0.8,0.9,1.0), 
+swDsn.Ex1.extend.unequal.varyTxEffect <- swDsn( clusters=c(3,0,2), tx.effect=c(0.8,0.9,1.0),
 extra.time=2 )
 swDsn.Ex1.extend.unequal.varyTxEffect$swDsn
 

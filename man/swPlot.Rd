@@ -8,10 +8,10 @@ Plot of Mean Response/Outcome for Stepped Wedge Cluster Randomized Trial (SW CRT
 \code{swPlot} returns plot of the mean response versus time based on waves and/or clusters from a SW CRT.
 }
 \usage{
-swPlot(response.var, tx.var, time.var, cluster.var, data, choose.mfrow=NULL, 
-by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", choose.main=NULL, 
-choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, choose.ncol=2, 
-choose.tx.pos="topright", choose.legend.pos=locator(1))
+swPlot(response.var, tx.var, time.var, cluster.var, data, choose.mfrow=NULL,
+by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", choose.main=NULL,
+choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, choose.ncol=2,
+choose.tx.pos="topright", choose.legend.pos="right")
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -19,7 +19,7 @@ choose.tx.pos="topright", choose.legend.pos=locator(1))
 numeric(vector): Response (Outcome) variable.
 }
   \item{tx.var}{
-numeric(vector): Treatment (Predictor of Interest) variable. Typically, 0=control, 1=intervention, values between 0 and 1 correspond to fractional treatment/intervention effects, and values greater than 1 correspond to other treatment options. 
+numeric(vector): Treatment (Predictor of Interest) variable. Typically, 0=control, 1=intervention, values between 0 and 1 correspond to fractional treatment/intervention effects, and values greater than 1 correspond to other treatment options.
 }
   \item{time.var}{
 integer(vector): Time (points) variable, corresponding to the time points when data were collected during the SW CRT.
@@ -58,10 +58,10 @@ Choose colors for different treatment options (at least two: 0=placebo, 1=interv
 Choose number of columns for non-treatment legend. Standard \code{ncol} option in \code{legend()} applies. The default is \code{2}.
 }
   \item{choose.tx.pos}{
-Choose where to place treatment colors "legend". Standard \code{legend()} positions apply. The default is "topright".
+Choose where to place treatment colors "legend". Standard \code{legend()} positions apply. The default is "topright"; if this covers points, it should be changed.
 }
   \item{choose.legend.pos}{
-Choose where to place the non-treatment legend. Standard \code{legend()} positions apply. The default is \code{locator(1)}, user specifies location with mouse/trackpad. Specify \code{NULL} to remove legend.
+Choose where to place the non-treatment legend. Standard \code{legend()} positions apply. The default is "right"; if this covers points, it should be changed.  If "mouseclick", user specifies location with mouse/trackpad by clicking on the plot that appears. Specify \code{NULL} to remove legend.
 }
 }
 \details{
@@ -74,7 +74,7 @@ Returns a plot of the mean response versus time with a combination of by wave (\
 Hussey MA, Hughes JP. Design and analysis of stepped wedge cluster randomized trials. Contemporary Clinical Trials 2007;28:182-191.
 }
 \author{
-James P Hughes and Navneet R Hakhu
+James P Hughes, Navneet R Hakhu, and Emily C Voldal
 }
 %\note{
 %%  ~~further notes~~
@@ -103,19 +103,19 @@ cluster.Ex1 <- rep( 1:dsn.Ex1$n.clusters, each=n.Ex1 * dsn.Ex1$total.time )
 data.Ex1 <- data.frame(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1)
 
 # Example 1 (Mean Response vs Time, by.wave=TRUE, combined.plot=TRUE)
-swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=TRUE, 
+swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=TRUE,
 combined.plot=TRUE, choose.tx.pos="bottomright", choose.legend.pos="bottom")
 
 # Example 2 (Mean Response vs Time, by.wave=TRUE, combined.plot=FALSE)
-swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=TRUE, 
+swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=TRUE,
 combined.plot=FALSE, choose.tx.pos="bottomright", choose.legend.pos="bottom")
 
 # Example 3 (Mean Response vs Time, by.wave=FALSE, combined.plot=TRUE)
-swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=FALSE, 
+swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=FALSE,
 combined.plot=TRUE, choose.tx.pos="bottomright", choose.legend.pos="bottom")
 
 # Example 4 (Mean Response vs Time, by.wave=FALSE, combined.plot=FALSE)
-swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=FALSE, 
+swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=FALSE,
 combined.plot=FALSE, choose.tx.pos="bottomright", choose.legend.pos="bottom")
 
 }
