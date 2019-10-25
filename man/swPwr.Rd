@@ -19,10 +19,10 @@ list: A stepped wedge design object, typically from swDsn, that includes at leas
 ##             swDsn, swDsn.unique.clusters, clusters, n.clusters, total.time
 }
   \item{distn}{
-character: Distribution assumed (\code{gaussian} or \code{binomial}).
+character: Distribution assumed (\code{gaussian} or \code{binomial}).  Currently, 'Binomial' implies Bernoulli.
 }
   \item{n}{
-integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points; (vector) for each cluster at all time points; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time.
+integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points; (vector) for each cluster at all time points; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time.  \code{n} can also be used to specify a design with transition periods (e.g. in the first time period that each sequence receives treatment, no observations are collected from that sequence).  Simply define \code{n} as a matrix with a sample size of 0 during every transition period.
 }
   \item{mu0}{
 numeric (scalar): Mean outcome in the control group.
@@ -58,7 +58,7 @@ numeric (scalar): Two-sided statistical significance level.
 logical: if TRUE, all stored (input, intermediate, and output) values of \code{swPwr} are returned. Default value is \code{FALSE}.
 }
   \item{silent}{
-logical: if TRUE, hides a warning about differences in argument order between version 3.0 and prior versions. Default value is \code{FALSE}.
+logical: if TRUE, hides a warning about differences in argument order between version 3.0 and prior versions. When \code{n} is not a scalar, also hides reminder about order of entries in \code{n}.  Default value is \code{FALSE}.
 }
 }
 \details{

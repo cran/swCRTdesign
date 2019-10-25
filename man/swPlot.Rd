@@ -10,8 +10,8 @@ Plot of Mean Response/Outcome for Stepped Wedge Cluster Randomized Trial (SW CRT
 \usage{
 swPlot(response.var, tx.var, time.var, cluster.var, data, choose.mfrow=NULL,
 by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", choose.main=NULL,
-choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, choose.ncol=2,
-choose.tx.pos="topright", choose.legend.pos="right")
+choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, choose.tx.lty = c(2,1),
+choose.ncol=2, choose.tx.pos="topright", choose.legend.pos="right")
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -52,7 +52,10 @@ Choose \code{pch} for plot. If \code{NULL}, \code{pch} are chosen for the user; 
 Choose \code{cex} for \code{choose.pch}. Standard \code{cex} option in \code{points()} applies. The default is \code{1}.
 }
   \item{choose.tx.col}{
-Choose colors for different treatment options (at least two: 0=placebo, 1=intervention). If \code{NULL}, colors are chosen for the unique treatment options in the data supplied. The default is \code{NULL}.
+Choose colors for different treatment options. Vector of two colors, corresponding to control and treatment groups, respectively. If \code{NULL}, colors are chosen for the unique treatment options in the data supplied. The default is \code{NULL}.
+}
+  \item{choose.tx.lty}{
+Choose line types for different treatment options. Vector of two numbers for \code{lty}, corresponding to control and treatment groups, respectively. The default is \code{c(2,1)}.
 }
   \item{choose.ncol}{
 Choose number of columns for non-treatment legend. Standard \code{ncol} option in \code{legend()} applies. The default is \code{2}.

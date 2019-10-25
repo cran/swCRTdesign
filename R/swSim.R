@@ -1,12 +1,13 @@
 swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect, sigma, tau=NULL,
-                         eta=NULL, rho=NULL, gamma=NULL, icc=NULL, cac=NULL, time.lab = NULL, retTimeOnTx = FALSE)
+                         eta=NULL, rho=NULL, gamma=NULL, icc=NULL, cac=NULL, time.lab = NULL, retTimeOnTx = FALSE, silent = FALSE)
 {
-  #updated 8/5/2019 for v. 3.0
-  #Changes made from the previous version which fixed errors that could have affected code are indicated by 'Edit:'
-
-  #####
+  #
+  #Last update: 10/17/2019, v. 3.1, Emily Voldal
+  #
+  #In this file, 'random slopes' and 'random treatment effects' are used interchangeably
+  ##########
   #Warnings, unpack family, translate ICC/CAC
-  #####
+  ##########
   ## taken from beginning of glmer() in lme4 package
   mc <- match.call()
   if (is.character(family)) {
@@ -20,26 +21,21 @@ swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect,
                   domain = "R-swCRTdesign"))
   }
   distn <- family$family
-
   #Basic input checks
   if(! all(n%%1 == 0)){
     stop("n (either scalar, vector, or matrix) must consist only of integers.")
   }
-
   #Checks to make sure people are using random effects OR ICC/CAC.
   param.icc.all <- !is.null(icc) & !is.null(cac)
   param.re.all <- !is.null(tau) & !is.null(eta) & !is.null(rho) & !is.null(gamma)
-
   param.icc.any <- !is.null(icc) | !is.null(cac)
   param.re.any <- !is.null(tau) | !is.null(eta) | !is.null(rho) | !is.null(gamma)
-
   if(param.icc.all == FALSE & param.re.all == FALSE){
     stop("Either enter values for both ICC and CAC, or all of tau, eta, gamma, and rho.  Note for users familiar with version 2.2.0: rho had a default value of 0, so you may need to add 'rho=0' to pre-existing code.")
   }
   if(param.re.any == TRUE & param.icc.any == TRUE){
     stop("The two parameterizations (random effects and ICC/CAC) are mututally exclusive.  Either enter values for both ICC and CAC, or all of tau, eta, gamma, and rho.")
   }
-
   #If using ICC and CAC, translate to random effects
   if (param.icc.all == TRUE){
     #Check range restrictions
@@ -77,7 +73,6 @@ swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect,
       tau <- sqrt(gamma^2*cac/(1-cac))
     }
   }
-
   #Basic restrictions on newly defined variance components
   if(rho < -1 | rho > 1){
     stop("Rho must be a numeral between -1 and 1.")
@@ -109,10 +104,11 @@ swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect,
   if (is.matrix(n) && ((nrow(n) != design$n.clusters)|(ncol(n) != design$total.time))){
     stop("The number of clusters and/or time steps in 'design' (design$n.clusters and design$total.time) and 'n' (number of rows and columns, respectively) do not match.")
   }
-  if (length(n)>1){
+  if (length(n)>1 & silent == FALSE){
     warning("When sample sizes are not uniform, power depends on order of clusters (see documentation).")
   }
-  #####
+  ##########
+  ##########
   link <- family$link
   p0 <- mu0
   p1 <- mu1
@@ -125,8 +121,7 @@ swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect,
   }
   else if (length(time.effect) == design$total.time) {
     time.effectVec <- time.effect
-  }
-  else {
+  } else {
     warning("Invalid time.effects length. Either specify a scalar fixed time effect (i.e., the same fixed time effect at each time point), or specify a vector of fixed time effects for each time point. It is best to ignore any results which follow as a result of this warning message, and correctly assign value(s) to the 'time.effect' function argument of swSim().")
   }
   ## time effect [MATRIX]
@@ -135,15 +130,20 @@ swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect,
   ## treatment effect [MATRIX]
   ## (for all clusters, all time points, but only 1 observation per (i,j)-pair)
   thetaX.ij <- X.ij * theta
-  timeOnTx.ij <- swDsn(clusters = design$clusters, tx.effect = (1:design$total.time))$swDsn
+  #Make matrix of time on treatment (Note: time on any treatment, regardless of fractional treatment effect)
+  timeOnTx.ij.pre <- design$swDsn
+  timeOnTx.ij.pre[timeOnTx.ij.pre > 0] <- 1
+  timeOnTx.ij <- t(apply(timeOnTx.ij.pre, 1, cumsum))
+  #Version <= 3.0 used to use the line below (without extra.time and all.ctl.time0), but that does not work when there are 0's in the design's cluster input vector (since the cluster output vector is clusters per wave, not clusters per time point).
+  #timeOnTx.ij <- swDsn(clusters = design$clusters, extra.time = design$extra.time, all.ctl.time0 = all(design$swDsn.unique.clusters[,1] == 0), tx.effect.frac = (1:design$total.time))$swDsn
   ## covariance matrix for random intercepts and random treatment effects [MATRIX] (can do gamma separately because assumed no correlation)
   sigMat <- matrix(c(tau^2, rho * tau * eta, rho * tau * eta, eta^2), 2, 2)
   ## set random seed; default is NULL, which does nothing.
   #Edit: removed this function from version 3.0
   #set.seed(seed)
-  #####
+  ##########
   #Generate random effects at the coarsest level
-  #####
+  ##########
   if (tau != 0 & eta != 0) {
     ## generate 2 standard normals for all clusters [VECTOR]
     z <- rnorm(2 * design$n.clusters)
@@ -182,9 +182,9 @@ swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect,
   rX.ij <- X.ij * matrix(r.i, nrow = design$n.clusters, ncol = design$total.time, byrow = FALSE)
   ## random time effects [MATRIX]
   g.ij <- matrix(g.i,nrow=design$n.clusters, ncol=design$total.time, byrow=FALSE)
-  #####
+  ##########
   #Combine fixed and random effects on link scale
-  #####
+  ##########
   ## link(mu.ijk) [MATRIX]
   ## (for all clusters, all time points, but only 1 observation per (i,j)-pair)
   link.mu.ij <- mu0 + beta.ij + thetaX.ij + a.ij + rX.ij + g.ij
@@ -208,17 +208,17 @@ swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect,
   ## cluster [MATRIX]
   ## (for all clusters, all time points, but only 1 observation per (i,j)-pair)
   cluster.ij <- matrix(rep(c(1:design$n.clusters), each = design$total.time), design$n.clusters, design$total.time, byrow = TRUE)
-  #####
+  ##########
   ##Generate random data for each individual
-  #####
+  ##########
   #Note: some features were removed when updating to version 3, and the potential combinations of links and families were reduced.  The code is left here from the previous version, commented out, in case we want to add features back in or users want to see what old code was using.
-
+  #
   ## creating response, tx, time, and cluster variables
   ## for specified observations 'n'
   ##   - scalar (same 'n' for each cluster AND each time point)
   ##   + vector (each element of vector is unique 'n[k]' for all time points within each cluster)
   ##   + matrix (each element of matrix is unique 'n[k,l]' for each cluster and each time points)
-
+  #
   #####n a scalar
   if (is.vector(n) & length(n) == 1) {
     ## link(mu.ijk) [VECTOR]
@@ -479,9 +479,9 @@ swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect,
       Y.ijk <- rpois(length(mu.ijk), mu.ijk)
     }
   }
-  #####
+  ##########
   ##Arrange data for export
-  #####
+  ##########
   ## response variable [VECTOR] (for each cluster, each time point, and each observation)
   response.var <- Y.ijk
   ## treatment variable [VECTOR] (for each cluster, each time point, and each observation)

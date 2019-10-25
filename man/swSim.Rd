@@ -9,7 +9,7 @@ Simulating individual-level data for specified study design of Stepped Wedge Clu
 }
 \usage{
 swSim(design, family, log.gaussian = FALSE, n, mu0, mu1, time.effect, sigma, tau, eta,
-rho, gamma, icc, cac, time.lab = NULL, retTimeOnTx = FALSE)
+rho, gamma, icc, cac, time.lab = NULL, retTimeOnTx = FALSE, silent = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -18,13 +18,13 @@ list: A stepped wedge design object, typically from swDsn, that includes at leas
 ##             swDsn, clusters, n.clusters, total.time
 }
   \item{family}{
-character: Used in typical way. However, only Gaussian, Binomial, and Poisson families accepted. Also, only identity, logit, and log links accepted.  Logit link is only available for Binomial family, and log link is only available for Binomial and Poisson.  ***NOTE: It is the users responsibility to make sure specified parameters (mu0, mu1, time.effect, tau, eta, rho, gamma) are ALL on SAME scale as specified link function; see example.***
+character: Used in typical way. However, only Gaussian, Binomial, and Poisson families accepted. Also, only identity, logit, and log links accepted.  Logit link is only available for Binomial family, and log link is only available for Binomial and Poisson.  Currently, 'Binomial' implies Bernoulli.  ***NOTE: It is the users responsibility to make sure specified parameters (mu0, mu1, time.effect, tau, eta, rho, gamma) are ALL on SAME scale as specified link function; see example.***
 }
   \item{log.gaussian}{
 character: When \code{TRUE} with a Gaussian family, simulates data whose log follows a Gaussian distribution; all parameters (mu0, mu1, time.effect, variance parameters) refer to the log scale.  Default is \code{FALSE}.
 }
   \item{n}{
-integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points; (vector) for each cluster at all time points; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time.
+integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points; (vector) for each cluster at all time points; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time.  \code{n} can also be used to specify a design with transition periods were no data is collected; see \code{swPwr}.
 }
   \item{mu0}{
 numeric (scalar): Mean outcome in the control group on the appropriate scale.
@@ -61,6 +61,9 @@ character (vector): Labeling for time points when output is display; choice of l
 }
   \item{retTimeOnTx}{
 logical: If \code{TRUE}, outputs time on treatment variable (\code{timeOnTx.var}) in addition to the usual treatment variable (\code{tx.var}).  To simulate data with a time on treatment lag effect, the fractional treatment effect can be specified through \code{design}. The default is \code{FALSE}.
+}
+  \item{silent}{
+logical: if TRUE, hides reminder about order of entries in \code{n} when \code{n} is not a scalar.  Default value is \code{FALSE}.
 }
 }
 %\details{
@@ -107,7 +110,8 @@ library(swCRTdesign)
 # n=matrix(120,22,5)) ]
 
 # generate SW data (fractional treatment effect)
-design <- swDsn(clusters=c(6,6,6,4), tx.effect=c(0.8,0.9,1.0), extra.time=0, all.ctl.time0=TRUE)
+design <- swDsn(clusters=c(6,6,6,4), tx.effect.frac=c(0.8,0.9,1.0),
+extra.time=0, all.ctl.time0=TRUE)
 set.seed(5)
 swGenData.nScalar <- swSim( design,
 family=binomial(link="logit"), n=120,

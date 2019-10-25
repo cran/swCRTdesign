@@ -1,10 +1,10 @@
 swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NULL, gamma=NULL,  icc=NULL, cac=NULL,
-                         alpha = 0.05, retDATA = FALSE, silent=FALSE)
+                         alpha = 0.05, retDATA = FALSE, silent = FALSE)
 {
-  #updated 8/5/2019 for v. 3.0
-  #####
+  #Last update: 10/17/2019, v. 3.1, Emily Voldal
+  ##########
   #Warnings
-  #####
+  ##########
   #Keep this warning around for a couple versions; if users didn't specify argument names, could change results with no indication that anything has happened.
   if(silent == FALSE){
   warning("The order of variance component arguments has changed for swPwr (in version 2.2.0, it was tau, eta, rho, sigma); please modify existing code if necessary. ")
@@ -14,41 +14,33 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
     stop("Alpha must be strictly between 0 and 1.")
   }
   if(! all(n%%1 == 0)){
-    stop("n (either scalar, vector, or matrix) must consist only of integers.")
+    warning("n (either scalar, vector, or matrix) should consist only of integers.")
   }
-
-  #Checks to make sure people are using random effects OR ICC/CAC.
+  #Checks to make sure people are using random effects OR ICC/CAC:
   param.icc.all <- !is.null(icc) & !is.null(cac)
   param.re.all <- !is.null(tau) & !is.null(eta) & !is.null(rho) & !is.null(gamma)
-
   param.icc.any <- !is.null(icc) | !is.null(cac)
   param.re.any <- !is.null(tau) | !is.null(eta) | !is.null(rho) | !is.null(gamma)
-
   if(param.icc.all == FALSE & param.re.all == FALSE){
     stop("Either enter values for both ICC and CAC, or all of tau, eta, gamma, and rho.  Note for users familiar with version 2.2.0: rho had a default value of 0, so you may need to add 'rho=0' to pre-existing code.")
   }
   if(param.re.any == TRUE & param.icc.any == TRUE){
     stop("The two parameterizations (random effects and ICC/CAC) are mututally exclusive.  Either enter values for both ICC and CAC, or all of tau, eta, gamma, and rho.")
   }
-
-  #####
+  ##########
   #If using ICC and CAC, translate to random effects
-  #####
+  ##########
   if (param.icc.all == TRUE){
-
     #Check range restrictions
     if(icc < 0 | icc > 1 | cac < 0 | cac > 1){
       stop("Both the ICC and CAC must be between 0 and 1.")
     }
-
     if(icc == 1){
       stop("There are multiple combinations of random effects that can make the ICC be 1; if you believe this is a realistic scenario, use the random effect parameterization.")
     }
-
     #Assume eta=0 and rho=0
     eta <- 0
     rho <- 0
-
     if (distn == 'gaussian'){
       sigmasq.temp <- sigma^2
       if(sigma == 0){
@@ -59,7 +51,6 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
       mubar.temp <- (mu1+mu0)/2
       sigmasq.temp <- mubar.temp*(1-mubar.temp)
     }
-
     if(cac == 1){
       gamma <- 0
       tau <- sqrt(sigmasq.temp*icc/(1-icc))
@@ -68,10 +59,9 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
       tau <- sqrt(gamma^2*cac/(1-cac))
     }
   }
-
-  #####
-  #More warnings
-  #####
+  ##########
+  #More warnings for variance components
+  ##########
   #Basic restrictions on newly defined variance components
   if(rho < -1 | rho > 1){
     stop("Rho must be a numeral between -1 and 1.")
@@ -85,14 +75,15 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
   if(distn == 'gaussian' && sigma == 0 & gamma == 0){
     stop("For a non-deterministic Gaussian outcome, at least one of sigma and gamma needs to be non-zero.")
   }
-
-  #####
+  ##########
+  ##########
   obs.per.cluster.per.time <- n
-  if (length(n)>1){
+  if (length(n)>1 & silent == FALSE){
     warning("When sample sizes are not uniform, power depends on order of clusters (see documentation).")
   }
   theta <- (mu1 - mu0)#treatment effect
   muBar <- (mu0 + mu1)/2
+  #The definition of sigSq is clear for a gaussian distribution; for a binomial distribution, we use a stand-in.
   if (distn == "gaussian"){
     sigSq <- sigma^2
   }else if (distn == "binomial") {
@@ -110,17 +101,19 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
   J <- design$total.time
   swDesign <- design$swDsn
   swDesignUnique <- design$swDsn.unique.clusters
-  if (any(rowSums(swDesign) == 0))
+  if (any(rowSums(swDesign) == 0)){#Note: this warning doesn't catch all cases, particularly for designs with transition periods
     warning("For the specified total number of clusters (I), total number of time periods (J), and number of cluster repetitions (I.rep), the specified stepped wedge design has at least one cluster which does not crossover from control(0) to treatment(1) arm.")
+  }
   ## Constructing the Treatment/Intervention Indicator Vector (X.ij)
   X.ij <- as.vector(t(swDesign))
   ## Constructing the Design Matrix (Xmat)
   beta.blk <- rbind(diag(1, J - 1, J - 1), 0)
   Xmat.blk <- matrix(rep(as.vector(t(cbind(1, beta.blk))),I), ncol = J, byrow = TRUE)
   Xmat <- cbind(Xmat.blk, X.ij)
-  #####
+  ##########
   ## Constructing the Covariance Matrix (Wmat); depends on configuration of n
-  #####
+  ##########
+  #Make nMat, a matrix with a sample size for every cluster (rows) and time period (columns).
   if (length(n) == 1){
     Wmat.blk <- tau^2 + diag(sigSq/n+gamma^2, J)#matrix V_i
     Wmat.partial <- kronecker(diag(1, I), Wmat.blk)#matrix V
@@ -146,10 +139,16 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
       Wmat.partial.i <- tau^2 + diag(sigSq/nMat[i,])+diag(gamma^2,length(nMat[i,]))#Wmat.partial for cluster i
       kronecker.diag.i <- rep(0,I)
       kronecker.diag.i[i] <- 1
-      Wmat.partial <- Wmat.partial+kronecker(diag(kronecker.diag.i),Wmat.partial.i)#For each cluster, we fill in another section of the block diagonal matrix
+      addition.i <- kronecker(diag(kronecker.diag.i), Wmat.partial.i)#Block diagonal matrix with the entries for block i
+      #For a design with transition periods, need to clean out NaN's produced by multiplying 0*Inf (really want them to be 0)
+      if(is.matrix(n)&any(n==0)){
+        addition.i[is.nan(addition.i)] <- 0
+      }
+      Wmat.partial <- Wmat.partial + addition.i#For each cluster, we fill in another section of the block diagonal matrix
     }
   }
-  #####
+  #
+  #Make a matrix with the random effects that vary by treatment (eta, rho) in the correct locations, and add it to the other random effects.
   Xij.Xil.ARRAY <- array(NA, c(J, J, length(I.rep)))
   for (i.indx in 1:length(I.rep)) {
     Xi.jl <- swDesignUnique[i.indx, ]
@@ -161,13 +160,22 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
   }
   W.eta <- blkDiag(Xij.Xil.LIST_blk)
   Wmat <- Wmat.partial + as.matrix(W.eta)#Covariance matrix
-  #####
+  #Wmat has entries of Inf in rows/columns that correspond to timexcluster periods with no observations.
+  #Since these contain no information for the study, we can just remove them, and also adjust Xmat
+  if(is.matrix(n)&any(n==0)){
+    indices <- is.infinite(rowSums(Wmat))
+    Wmat <- Wmat[!indices,!indices]
+    Xmat <- Xmat[!indices,]
+  }
+  ##########
+  #Use design matrix and covariance matrix to calculate power
+  ##########
   var.theta.WLS <- solve(t(Xmat) %*% solve(Wmat) %*% Xmat)["X.ij","X.ij"]
   pwrWLS <- pnorm(abs(theta)/sqrt(var.theta.WLS) - qnorm(1 -alpha/2)) + pnorm(-abs(theta)/sqrt(var.theta.WLS) - qnorm(1 -alpha/2))
   rslt <- pwrWLS
-  #####
+  ##########
   ## Closed-form approach/solution
-  #####
+  ##########
   ##   eta==0 and gamma==0 (i.e., *NO* random treatment or time)
   if (eta == 0 & gamma == 0 & length(n) == 1) {#we can only calculate closed form when n is an integer
     ## Closed-form formula
@@ -194,9 +202,9 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
   }else {
     pwrCLOSED <- NA
   }
-  #####
+  ##########
   ## Returning Resulting Power(s) for fixed theta of the specified SW design
-  #####
+  ##########
   if (retDATA)
     rslt <- list(design = design, n = n, mu0 = mu0, mu1 = mu1,
                  tau = tau, eta = eta, rho = rho, sigma = sigma, gamma=gamma, alpha = alpha,
