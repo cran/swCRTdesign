@@ -1,4 +1,4 @@
 exportPattern("^[[:alpha:]]+")
   importFrom("graphics", "axis", "legend", "lines", "locator", "par",
              "plot", "points", "text")
-  importFrom("stats", "pnorm", "qnorm", "rbinom", "rnorm", "rpois")
+  importFrom("stats", "pnorm", "qnorm", "rbinom", "rnorm", "rpois","model.matrix")

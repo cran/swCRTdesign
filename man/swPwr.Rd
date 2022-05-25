@@ -5,7 +5,7 @@
 Power of Stepped Wedge Cluster Randomized Trial (SW CRT)
 }
 \description{
-\code{swPwr} returns (two-sided) power of treatment effect (\eqn{\theta}) for the specified SW CRT design using a linear models weighted least squares (WLS) approach. The response/outcome of interest can be binomial or Gaussian distributed and is assumed to come from a model with random intercepts, random treatment effects, and random cluster-specific time effects. Variance components can be specified using either tau, eta, rho, and gamma, or icc and cac (see details).  If a random intercepts only model is used (i.e., eta and gamma are 0 and n is constant over clusters and time), then the power calculation is comparable to the closed-form formula of [Hussey and Hughes, 2007].
+\code{swPwr} returns (two-sided) power of treatment effect (\eqn{\theta}) for the specified SW CRT design using a linear models weighted least squares (WLS) approach. The response/outcome of interest can be binomial or Gaussian distributed and is assumed to come from a model with random intercepts, random treatment effects, and random cluster-specific time effects. Variance components can be specified using either tau, eta, rho, and gamma, or icc and cac (see details).  If a random intercepts only model is used (i.e., eta and gamma are 0 and n is constant over clusters and time), then the power calculation is comparable to the closed-form formula of [Hussey and Hughes, 2007]. See [Voldal et al., 2020] for more guidance.  This function is also available as a Shiny app at https://swcrtdesign.shinyapps.io/stepped_wedge_power_calculation/.
 }
 \usage{
 swPwr(design, distn, n, mu0, mu1, sigma, tau, eta, rho, gamma,
@@ -83,9 +83,7 @@ When eta (and rho) are 0, instead of using tau, eta, rho, and gamma, the icc and
 }
 \value{
 numeric (matrix): \code{swPwr} returns the power of treatment effect (\eqn{\theta}), where the variance of treatment effect is computed by WLS.  %%%% (if \eqn{\eta = 0}, then power computed using closed-form formula for variance is also given) if \code{retDATA = FALSE}.
-\item{}{
 
-}
 numeric (list): \code{swPwr} returns all specified and computed items as objects of a list if \code{retDATA = TRUE}.
 %% *****SPECIFY WHAT THESE ARE!!!!!**********
 	\item{design}{
@@ -158,6 +156,8 @@ numeric (scalar): Cluster auto-correlation.  Can be used with ICC instead of tau
 \references{
 
 Hussey MA, Hughes JP. Design and analysis of stepped wedge cluster randomized trials. Contemporary Clinical Trials 2007;28:182-191.
+
+Voldal EC, Hakhu NR, Xia F, Heagerty PJ, Hughes JP. swCRTdesign: An R package for stepped wedge trial design and analysis. Computer Methods and Programs in Biomedicine 2020;196:105514.
 }
 \author{
 James P Hughes, Navneet R Hakhu, and Emily C Voldal
