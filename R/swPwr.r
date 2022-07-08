@@ -1,4 +1,4 @@
-swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NULL, gamma=NULL,  icc=NULL, cac=NULL,
+swPwr <- function (design, distn, n, mu0, mu1, H = NULL, sigma, tau=NULL, eta=NULL, rho=NULL, gamma=NULL,  icc=NULL, cac=NULL,
                          alpha = 0.05, retDATA = FALSE, silent = FALSE)
 {
   #Last update: 10/17/2019, v. 3.1, Emily Voldal
@@ -15,6 +15,9 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
   }
   if(! all(n%%1 == 0)){
     warning("n (either scalar, vector, or matrix) should consist only of integers.")
+  }
+  if(!is.null(H) & (length(design$tx.effect.frac)>1 | design$tx.effect.frac<1)){
+    stop("Do not specify fractional treatment effects in the design AND an ETI estimator")
   }
   #Checks to make sure people are using random effects OR ICC/CAC:
   param.icc.all <- !is.null(icc) & !is.null(cac)
@@ -75,7 +78,8 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
   if(distn == 'gaussian' && sigma == 0 & gamma == 0){
     stop("For a non-deterministic Gaussian outcome, at least one of sigma and gamma needs to be non-zero.")
   }
-  ##########
+  if (length(tau) > 1 | length(eta) > 1)
+    stop("Function cannot compute stepped wedge design Power for tau-vector or eta-vector; tau and eta must be scalars.")  ##########
   ##########
   obs.per.cluster.per.time <- n
   if (length(n)>1 & silent == FALSE){
@@ -94,8 +98,7 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
     if ((tau^2 + eta^2 + gamma^2) > sigSq)
       stop("tau^2 + eta^2 + gamma^2 must be less than muBar*(1-muBar) when distn=binomial")
   }
-  if (length(tau) > 1 | length(eta) > 1)
-    stop("Function cannot compute stepped wedge design Power for tau-vector or eta-vector; tau and eta must be scalars.")
+#########
   I.rep <- design$clusters
   I <- design$n.clusters
   J <- design$total.time
@@ -104,12 +107,23 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
   if (any(rowSums(swDesign) == 0)){#Note: this warning doesn't catch all cases, particularly for designs with transition periods
     warning("For the specified total number of clusters (I), total number of time periods (J), and number of cluster repetitions (I.rep), the specified stepped wedge design has at least one cluster which does not crossover from control(0) to treatment(1) arm.")
   }
-  ## Constructing the Treatment/Intervention Indicator Vector (X.ij)
-  X.ij <- as.vector(t(swDesign))
+#########
+  ## Constructing the Treatment/Intervention Indicator Vector (X.ij) 
+  if (is.null(H)) { 
+  # IT model
+    X.ij <- as.vector(t(swDesign))
+  } else {
+  # ETI model
+	tmp = as.vector(apply(swDesign,1,cumsum))
+	maxET = max(tmp)
+	X.ij <- matrix(0,length(tmp),maxET)
+	for (j in 1:maxET){ X.ij[,j] = as.integer(tmp==j) }
+  }  
   ## Constructing the Design Matrix (Xmat)
   beta.blk <- rbind(diag(1, J - 1, J - 1), 0)
   Xmat.blk <- matrix(rep(as.vector(t(cbind(1, beta.blk))),I), ncol = J, byrow = TRUE)
   Xmat <- cbind(Xmat.blk, X.ij)
+
   ##########
   ## Constructing the Covariance Matrix (Wmat); depends on configuration of n
   ##########
@@ -170,14 +184,21 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
   ##########
   #Use design matrix and covariance matrix to calculate power
   ##########
-  var.theta.WLS <- solve(t(Xmat) %*% solve(Wmat) %*% Xmat)["X.ij","X.ij"]
+  if (is.null(H)) { 
+  # IT model
+    var.theta.WLS <- solve(t(Xmat) %*% solve(Wmat) %*% Xmat)["X.ij","X.ij"]
+	} else {
+  # ETI model
+    eti = (ncol(Xmat)-maxET+1):ncol(Xmat)
+    var.theta.WLS <- t(as.matrix(H))%*%solve(t(Xmat) %*% solve(Wmat) %*% Xmat)[eti,eti]%*%as.matrix(H)
+    }
   pwrWLS <- pnorm(abs(theta)/sqrt(var.theta.WLS) - qnorm(1 -alpha/2)) + pnorm(-abs(theta)/sqrt(var.theta.WLS) - qnorm(1 -alpha/2))
   rslt <- pwrWLS
   ##########
   ## Closed-form approach/solution
   ##########
   ##   eta==0 and gamma==0 (i.e., *NO* random treatment or time)
-  if (eta == 0 & gamma == 0 & length(n) == 1) {#we can only calculate closed form when n is an integer
+  if (eta == 0 & gamma == 0 & length(n) == 1 & is.null(H)) {#we can only calculate closed form when n is an integer
     ## Closed-form formula
     X <- swDesign
     U <- sum(X)
@@ -206,7 +227,7 @@ swPwr <- function (design, distn, n, mu0, mu1, sigma, tau=NULL, eta=NULL, rho=NU
   ## Returning Resulting Power(s) for fixed theta of the specified SW design
   ##########
   if (retDATA)
-    rslt <- list(design = design, n = n, mu0 = mu0, mu1 = mu1,
+    rslt <- list(design = design, n = n, mu0 = mu0, mu1 = mu1, H=H,
                  tau = tau, eta = eta, rho = rho, sigma = sigma, gamma=gamma, alpha = alpha,
                  Xmat = Xmat, Wmat = Wmat, var.theta.WLS = var.theta.WLS,
                  pwrWLS = pwrWLS, pwrCLOSED = pwrCLOSED)

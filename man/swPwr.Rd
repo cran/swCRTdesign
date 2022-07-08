@@ -5,10 +5,10 @@
 Power of Stepped Wedge Cluster Randomized Trial (SW CRT)
 }
 \description{
-\code{swPwr} returns (two-sided) power of treatment effect (\eqn{\theta}) for the specified SW CRT design using a linear models weighted least squares (WLS) approach. The response/outcome of interest can be binomial or Gaussian distributed and is assumed to come from a model with random intercepts, random treatment effects, and random cluster-specific time effects. Variance components can be specified using either tau, eta, rho, and gamma, or icc and cac (see details).  If a random intercepts only model is used (i.e., eta and gamma are 0 and n is constant over clusters and time), then the power calculation is comparable to the closed-form formula of [Hussey and Hughes, 2007]. See [Voldal et al., 2020] for more guidance.  This function is also available as a Shiny app at https://swcrtdesign.shinyapps.io/stepped_wedge_power_calculation/.
+\code{swPwr} returns (two-sided) power of treatment effect (\eqn{\theta}) for the specified SW CRT design using a linear models weighted least squares (WLS) approach for an immediate treatment effect (IT) model or an exposure time indicator (ETI) model (Kenny et al, 2022). The response/outcome of interest can be binomial or Gaussian distributed and is assumed to come from a model with random intercepts, random treatment effects, and random cluster-specific time effects. Variance components can be specified using either tau, eta, rho, and gamma, or icc and cac (see details).  If a random intercepts only model is used (i.e., eta and gamma are 0 and n is constant over clusters and time), then the power calculation is comparable to the closed-form formula of [Hussey and Hughes, 2007]. See [Voldal et al., 2020] for more guidance.  This function is also available as a Shiny app at https://swcrtdesign.shinyapps.io/stepped_wedge_power_calculation/.
 }
 \usage{
-swPwr(design, distn, n, mu0, mu1, sigma, tau, eta, rho, gamma,
+swPwr(design, distn, n, mu0, mu1, H=NULL, sigma, tau, eta, rho, gamma,
 icc, cac, alpha=0.05, retDATA=FALSE, silent=FALSE)
 %
 }
@@ -25,10 +25,13 @@ character: Distribution assumed (\code{gaussian} or \code{binomial}).  Currently
 integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points; (vector) for each cluster at all time points; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time.  \code{n} can also be used to specify a design with transition periods (e.g. in the first time period that each sequence receives treatment, no observations are collected from that sequence).  Simply define \code{n} as a matrix with a sample size of 0 during every transition period.
 }
   \item{mu0}{
-numeric (scalar): Mean outcome in the control group.
+numeric (scalar): Mean outcome in the control group. See also documentation for H, below.
 }
   \item{mu1}{
-numeric (scalar): Mean outcome in the treatment group. Note: Treatment effect is the difference in means \eqn{\theta = \mu_1 - \mu_0}.
+numeric (scalar): Mean outcome in the treatment group. Note: Treatment effect is the difference in means \eqn{\theta = \mu_1 - \mu_0}. See also documentation for H, below.
+}
+  \item{H}{
+numeric (vector): If NULL, then swPwr assumes an immediate, constant treatment effect (IT) model. If not NULL, then an exposure time indicator (ETI) model is assumed and H should be a vector as long as the longest treatment effect lag (typically, number of time periods minus one). H specifies the desired linear combination of exposure time treatment effects. For example, in a stepped wedge trial with 5 time periods and four exposure times, H = rep(.25,4) gives the average treatment effect over the four exposure times; H = c(0,0,.5,.5) ignores the first two periods after the intervention is introduced and averages the remaining periods. mu0 and mu1 give expected values of the linear combination of exposure time treatment effects under the null and alternative hypotheses, respectively.
 }
   \item{sigma}{
 numeric (scalar): Standard deviation when assuming Gaussian distribution (\code{distn=gaussian}). For binomial distribution \eqn{\sigma^2} is automatically set to \eqn{\bar{\mu}(1-\bar{\mu})} where \eqn{\bar{\mu} = (\mu_1 + \mu_0)/2}
@@ -75,7 +78,7 @@ The two-sided statistical power of treatment effect \eqn{(\theta = \mu_1 - \mu_0
 \deqn{ Pwr(\theta) = \Phi( Z - z_{1 - \alpha /2} ) + \Phi( -Z - z_{1 - \alpha /2} ) }
 where
 \deqn{ Z = \frac{ |\theta| }{ \sqrt{Var(\hat{\theta}_{WLS})} } }
-and \eqn{\Phi} is the cumulative distribution function of the standard normal \eqn{N(0,1)} distribution.
+and \eqn{\Phi} is the cumulative distribution function of the standard normal \eqn{N(0,1)} distribution. If H is non-NULL then the \eqn{\mu} are assumed to be equal to H\eqn{\delta} where \eqn{\delta} is a vector of exposure time treatment effects.
 
 When eta (and rho) are 0, instead of using tau, eta, rho, and gamma, the icc and cac can be used to define the variability of the random intercepts and time effects.  In this model,
 \deqn{ ICC = \frac{\tau^2+\gamma^2}{\tau^2+\gamma^2+\sigma^2} }
@@ -156,6 +159,8 @@ numeric (scalar): Cluster auto-correlation.  Can be used with ICC instead of tau
 \references{
 
 Hussey MA, Hughes JP. Design and analysis of stepped wedge cluster randomized trials. Contemporary Clinical Trials 2007;28:182-191.
+
+Kenny A, Voldal E, Xia F, Heagerty PJ, Hughes JP. Analysis of stepped wedge cluster randomized trials in the presence of a time-varying treatment effect. Statistics in Medicine, in press, 2022.
 
 Voldal EC, Hakhu NR, Xia F, Heagerty PJ, Hughes JP. swCRTdesign: An R package for stepped wedge trial design and analysis. Computer Methods and Programs in Biomedicine 2020;196:105514.
 }

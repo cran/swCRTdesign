@@ -6,11 +6,11 @@ Power of Stepped Wedge Cluster Randomized Trial with Discrete Outcomes
 }
 \description{
 \code{swGlmPwr} returns (two-sided) power of the treatment effect for the specified SW CRT design in the context of generalized linear models by adopting the Laplace approximation detailed in Breslow and Clayton (1993) to obtain the covariance matrix of the estimated parameters. The response/outcome of interest can be binomial or Poisson distributed. 
-The outcome is assumed to come from a model with fixed treatment effect, fixed time effect, random intercepts, random treatment effects, and random cluster-specific time effects. The coefficients for fixed effects can be specified using \code{fixed.intercept}, \code{fixed.treatment.effect}, and \code{fixed.time.effect}. Variance components can be specified using \code{tau}, \code{eta}, \code{rho}, and \code{gamma}. 
+The outcome is assumed to come from a model with fixed treatment effect (using an immediate treatment (IT) or exposure time indicator (ETI) model - see Kenny et al (2022)), fixed time effect, random intercepts, random treatment effects, and random cluster-specific time effects. The coefficients for fixed effects can be specified using \code{fixed.intercept}, \code{fixed.treatment.effect}, and \code{fixed.time.effect}. Variance components can be specified using \code{tau}, \code{eta}, \code{rho}, and \code{gamma}. 
 }
 \usage{
 swGlmPwr(design, distn, n, fixed.intercept,
-fixed.treatment.effect, fixed.time.effect,
+fixed.treatment.effect, fixed.time.effect, H = NULL,
 tau = 0, eta = 0, rho = 0, gamma = 0, alpha=0.05, retDATA = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -28,11 +28,14 @@ integer (scalar, vector, or matrix): Number of observations: (scalar) for all cl
 numeric (scalar): Intercept for the fixed effect on canonical scales (logit for binomial outcomes and log for Poisson outcomes). It is the mean outcome under the control condition in the first time point transformed to the canonical scales.
 }
 \item{fixed.treatment.effect}{
-numeric (scalar): Coefficient for the treatment in the fixed effect model on canonical scales (logit for binomial outcomes and log for Poisson outcomes).
+numeric (scalar, vector): If H = NULL then an IT model is assumed and and fixed.treatment.effect is the scalar coefficient for the treatment in the fixed effect model on canonical scales (logit for binomial outcomes and log for Poisson outcomes). If H is non-NULL then an ETI model is assumed and fixed.treatment.effect is a vector as long as the longest treatment effect lag (typically, number of time periods minus one) giving the coefficient for the treatment effect on the canonical scale.
 }
 \item{fixed.time.effect}{
 numeric(scalar, vector): Coefficients for the time (as dummy variables) in the fixed effect model on canonical scales (logit for binomial outcomes and log for Poisson outcomes). The first time point is always used as reference.
 Specify a common time effect for all time points after the first (scalar) or differnt time effects for each time point after the first (vector of length (total time-1)).
+}
+  \item{H}{
+numeric (vector): If NULL, then swGlmPwr assumes an immediate, constant treatment effect (IT) model. If not NULL, then an exposure time indicator (ETI) model is assumed and H should be a vector as long as the longest treatment effect lag (typically, number of time periods minus one). H specifies the desired linear combination of fixed.treatment.effect. For example, in a stepped wedge trial with 5 time periods and four exposure times, H = rep(.25,4) gives the average treatment effect over the four exposure times; H = c(0,0,.5,.5) ignores the first two periods after the intervention is introduced and averages the remaining periods. Typically, the sum of H is 1.0.
 }
 \item{tau}{
 numeric (scalar): Standard deviation of random intercepts on canonical scales (logit for binomial outcomes and log for Poisson outcomes).
@@ -54,7 +57,7 @@ logical: if \code{TRUE}, all stored (input, intermediate, and output) values of 
 }
 }
 \details{
-The two-sided statistical power of treatment effect \eqn{\theta} is
+The two-sided statistical power of treatment effect \eqn{\theta} (equal to H\%*\%fixed.treatment.effect if H is non-NULL) is
 \deqn{Pwr(\theta) = \Phi( \frac{Z - z_{1 - \alpha /2} \sqrt{V_0(\hat{\theta})}}{\sqrt{V_\alpha(\hat{\theta})}}) + 1 - \Phi( \frac{Z+ z_{1 - \alpha /2} \sqrt{V_0(\hat{\theta})}}{\sqrt{V_\alpha(\hat{\theta})}})},
 where \eqn{\Phi} is the cumulative distribution function of the standard normal distribution. 
 
@@ -114,9 +117,11 @@ numeric (scalar): Power of treatment effect using a simplified Laplace approxima
 }
 }
 \references{
-Breslow, N. E. and Clayton, D. G. (1993). Approximate inference in generalized linear mixed models. Journal of the American Statistical Association, 88(421):9-25.
+Breslow NE and Clayton DG (1993). Approximate inference in generalized linear mixed models. Journal of the American Statistical Association, 88(421):9-25.
 
-Xia F, Hughes JP, Voldal EC, Heagerty PJ. Power and sample size calculation for stepped-wedge designs with discrete outcomes. Trials. 2021 Dec;22(1):1-0.
+Kenny A, Voldal E, Xia F, Heagerty PJ, Hughes JP. Analysis of stepped wedge cluster randomized trials in the presence of a time-varying treatment effect. Statistics in Medicine, in press, 2022.
+
+Xia F, Hughes JP, Voldal EC, Heagerty PJ. Power and sample size calculation for stepped-wedge designs with discrete outcomes. Trials. 2021 Dec;22(1):598.
 
 }
 \author{
