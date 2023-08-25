@@ -11,7 +11,7 @@ Plot of Mean Response/Outcome for Stepped Wedge Cluster Randomized Trial (SW CRT
 swPlot(response.var, tx.var, time.var, cluster.var, data, choose.mfrow=NULL,
 by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", choose.main=NULL,
 choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, choose.tx.lty = c(2,1),
-choose.ncol=2, choose.tx.pos="topright", choose.legend.pos="right")
+choose.ncol=2, xlim=NULL, ylim=NULL, choose.tx.pos="topright", choose.legend.pos="right")
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -19,7 +19,7 @@ choose.ncol=2, choose.tx.pos="topright", choose.legend.pos="right")
 numeric(vector): Response (Outcome) variable.
 }
   \item{tx.var}{
-numeric(vector): Treatment (Predictor of Interest) variable. Typically, 0=control, 1=intervention, values between 0 and 1 correspond to fractional treatment/intervention effects, and values greater than 1 correspond to other treatment options.
+numeric(vector): Treatment (Predictor of Interest) variable. Typically, 0=control, 1=intervention, and values greater than 1 correspond to other treatment levels.
 }
   \item{time.var}{
 integer(vector): Time (points) variable, corresponding to the time points when data were collected during the SW CRT.
@@ -60,6 +60,9 @@ Choose line types for different treatment options. Vector of two numbers for \co
   \item{choose.ncol}{
 Choose number of columns for non-treatment legend. Standard \code{ncol} option in \code{legend()} applies. The default is \code{2}.
 }
+  \item{xlim, ylim}{
+Vectors of length 2 giving x and y axis limits on plot. If NULL, minimum and maximum of summary time and response variables are used, respectively.
+  }
   \item{choose.tx.pos}{
 Choose where to place treatment colors "legend". Standard \code{legend()} positions apply. The default is "topright"; if this covers points, it should be changed.
 }
@@ -68,7 +71,7 @@ Choose where to place the non-treatment legend. Standard \code{legend()} positio
 }
 }
 \details{
-Returns a plot of the mean response versus time with a combination of by wave (\code{TRUE} / \code{FALSE}) and combined plot (\code{TRUE} / \code{FALSE}) from a SW CRT.
+Returns a plot of the mean response versus time with a combination of by wave (\code{TRUE} / \code{FALSE}) and combined plot (\code{TRUE} / \code{FALSE}) from a SW CRT. See discussion of number of waves in help file for swSummary.
 }
 %\value{
 %
@@ -90,35 +93,25 @@ James P Hughes, Navneet R Hakhu, and Emily C Voldal
 %}
 \examples{
 library(swCRTdesign)
-# Example 1 (Generating SW CRT data)
-# (binary response with 1 missing value, 5 clusters, 4 time points)
-
-n.Ex1 <- 120
-p0.Ex1 <- 0.05
-clusters.Ex1 <- c(2,2,1)
-dsn.Ex1 <- swDsn( clusters=clusters.Ex1 )
-time.Ex1 <- c(1:dsn.Ex1$total.time)*4 - 4
-response.Ex1 <- rbinom(n.Ex1 * dsn.Ex1$n.clusters * dsn.Ex1$total.time, 1, p0.Ex1)
-response.Ex1[1] <- NA
-tx.Ex1 <- as.vector( apply( dsn.Ex1$swDsn, 1, function(z){rep(z, n.Ex1)}) )
-time.Ex1 <- rep( time.Ex1, n.Ex1 * dsn.Ex1$n.clusters )
-cluster.Ex1 <- rep( 1:dsn.Ex1$n.clusters, each=n.Ex1 * dsn.Ex1$total.time )
-data.Ex1 <- data.frame(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1)
+# Example 1 
+# Generate binary response with 5 clusters, 4 time points
+data.Ex1 <- swSim(swDsn(c(2,2,1)),family=binomial(link="identity"), n=120,
+                     mu0=0.25, mu1=0.30,time.effect=0, tau=0.05, gamma=.01)
 
 # Example 1 (Mean Response vs Time, by.wave=TRUE, combined.plot=TRUE)
-swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=TRUE,
+swPlot(response.var, tx.var, time.var, cluster.var, data.Ex1, by.wave=TRUE,
 combined.plot=TRUE, choose.tx.pos="bottomright", choose.legend.pos="bottom")
 
 # Example 2 (Mean Response vs Time, by.wave=TRUE, combined.plot=FALSE)
-swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=TRUE,
+swPlot(response.var, tx.var, time.var, cluster.var, data.Ex1, by.wave=TRUE,
 combined.plot=FALSE, choose.tx.pos="bottomright", choose.legend.pos="bottom")
 
 # Example 3 (Mean Response vs Time, by.wave=FALSE, combined.plot=TRUE)
-swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=FALSE,
-combined.plot=TRUE, choose.tx.pos="bottomright", choose.legend.pos="bottom")
+swPlot(response.var, tx.var, time.var, cluster.var, data.Ex1, by.wave=FALSE,
+combined.plot=TRUE, ylim=c(0,0.6), choose.tx.pos="bottomright", choose.legend.pos="topleft")
 
 # Example 4 (Mean Response vs Time, by.wave=FALSE, combined.plot=FALSE)
-swPlot(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, data.Ex1, by.wave=FALSE,
+swPlot(response.var, tx.var, time.var, cluster.var, data.Ex1, by.wave=FALSE,
 combined.plot=FALSE, choose.tx.pos="bottomright", choose.legend.pos="bottom")
 
 }

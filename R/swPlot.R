@@ -1,6 +1,9 @@
-swPlot <- function(response.var, tx.var, time.var, cluster.var, data, choose.mfrow=NULL, by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", choose.main=NULL, choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, choose.tx.lty = c(2,1), choose.ncol=2, choose.tx.pos="topright", choose.legend.pos="right")
+swPlot <- function(response.var, tx.var, time.var, cluster.var, data, 
+                   choose.mfrow=NULL, by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", 
+                   choose.main=NULL, choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, 
+                   choose.tx.lty = c(2,1), choose.ncol=2, xlim=NULL, ylim=NULL,choose.tx.pos="topright", choose.legend.pos="right")
 {
-#Last update: 10/17/2019, v. 3.1, Emily Voldal
+#Last update: Jim Hughes 5/1/2023, v. 4.0
 ##########
 #Use swSummary to process data
 ##########
@@ -11,42 +14,13 @@ swDsnTmp <- swSummaryFcnCall$swDsn
 ##########
 #Set up colors for plots
 ##########
-#For traditional data (no fractional treatment effects, ect.) only the colorTx0 and colorTx1 will be used.
-if( is.null(choose.tx.col) ) {
-	## This line of could be the same as the following line; however, I created 'swDsnTmp' for most of the remaining code ----> 	uniqueTx <- sort( unique(as.vector(swSummaryFcnCall$swDsn)), decreasing=FALSE )
-	##
+#For traditional data (one Tx level) only the colorTx0 and colorTx1 will be used.
 	uniqueTx <- sort(unique( as.vector(swDsnTmp) ))
-	##
-	colorTx0 <- "blue"
-	colorTx1 <- "red"
-	colorTx0.1 <- c("green3", "orange", "brown")
-	colorTx1.plus <- c("purple", "lavender")
-	##
-	Tx0 <- which(uniqueTx > -1e-8 & uniqueTx < 1e-8)
-	Tx1 <- which(uniqueTx > 1 - 1e-8 & uniqueTx < 1 + 1e-8)
-	Tx0.1 <- which(uniqueTx > 0 & uniqueTx < 1)
-	Tx1.plus <- which(uniqueTx > 1)
-	##
-	uniqueTxColors <- rep(NA, length(uniqueTx))
-	uniqueTxColors[Tx0] <- colorTx0
-	uniqueTxColors[Tx1] <- colorTx1
-	uniqueTxColors[Tx0.1] <- colorTx0.1[1:length(Tx0.1)]
-	uniqueTxColors[Tx1.plus] <- colorTx1.plus[1:length(Tx1.plus)]
-} else {#In the future, could allow color specification of more complicated tx designs.  For now, only custom colors for control and full treatment groups.
-  uniqueTx <- sort(unique(as.vector(swDsnTmp)))
-  colorTx0 <- choose.tx.col[1]
-  colorTx1 <- choose.tx.col[2]
-  colorTx0.1 <- c("green3", "orange", "brown")
-  colorTx1.plus <- c("purple", "lavender")
-  Tx0 <- which(uniqueTx > -1e-08 & uniqueTx < 1e-08)
-  Tx1 <- which(uniqueTx > 1 - 1e-08 & uniqueTx < 1 + 1e-08)
-  Tx0.1 <- which(uniqueTx > 0 & uniqueTx < 1)
-  Tx1.plus <- which(uniqueTx > 1)
-  uniqueTxColors <- rep(NA, length(uniqueTx))
-  uniqueTxColors[Tx0] <- colorTx0
-  uniqueTxColors[Tx1] <- colorTx1
-  uniqueTxColors[Tx0.1] <- colorTx0.1[1:length(Tx0.1)]
-  uniqueTxColors[Tx1.plus] <- colorTx1.plus[1:length(Tx1.plus)]
+if( is.null(choose.tx.col) ) {
+	uniqueTxColors <- c("blue","red","green3", "orange", "brown","purple", "lavender")
+} else { 
+  if (length(choose.tx.col)!=length(uniqueTx)) stop("Length of colors vector shorter than number of intervention states; colors will be recycled")
+  uniqueTxColors <- choose.tx.col
 }
 ###*********************************************
 ###
@@ -56,11 +30,22 @@ if( is.null(choose.tx.col) ) {
 if( by.wave==TRUE ) {
 	swMeanResponse.Wave <- swSummaryFcnCall$response.wave
 	swMeanResponse.Cluster <- swSummaryFcnCall$response.cluster
-	sw.xMin.Wave <- min( swSummaryFcnCall$time.at.each.wave )
-	sw.xMax.Wave <- max( swSummaryFcnCall$time.at.each.wave )
-	sw.yMin.Wave <- min( swMeanResponse.Wave )
-	sw.yMax.Wave <- max( swMeanResponse.Wave )
-	#Future extension: allow user to specify xlim and ylim
+	if (is.null(xlim)){
+	  sw.xMin.Wave <- min( swSummaryFcnCall$time.at.each.wave )
+	  sw.xMax.Wave <- max( swSummaryFcnCall$time.at.each.wave )
+	} else {
+	  if (length(xlim)!=2) stop("Length of xlim must be 2 if provided")
+	  sw.xMin.Wave <- xlim[1]
+	  sw.xMax.Wave <- xlim[2]
+	}
+	if (is.null(ylim)){
+	  sw.yMin.Wave <- min( swMeanResponse.Wave, na.rm=TRUE )
+  	sw.yMax.Wave <- max( swMeanResponse.Wave, na.rm=TRUE )
+	} else {
+	  if (length(ylim)!=2) stop("Length of ylim must be 2 if provided")
+	  sw.yMin.Wave <- ylim[1]
+	  sw.yMax.Wave <- ylim[2]
+	}
 	###*********************************************
 	###
 	### (by.wave == TRUE & combined.plot == TRUE)
@@ -173,11 +158,20 @@ if( by.wave==TRUE ) {
 else if( by.wave == FALSE ){
 	swMeanResponse.Wave <- swSummaryFcnCall$response.wave
 	swMeanResponse.Cluster <- swSummaryFcnCall$response.cluster
-	sw.xMin.Cluster <- min( swSummaryFcnCall$time.at.each.wave ) - 0.5
-	sw.xMax.Cluster <- max( swSummaryFcnCall$time.at.each.wave ) + 0.5
-	sw.yMin.Cluster <- min( swMeanResponse.Cluster )
-	sw.yMax.Cluster <- max( swMeanResponse.Cluster )
-	#Future extension: allow user to specify xlim and ylim
+	if (is.null(xlim)){
+	  sw.xMin.Cluster <- min( swSummaryFcnCall$time.at.each.wave ) - 0.5
+	  sw.xMax.Cluster <- max( swSummaryFcnCall$time.at.each.wave ) + 0.5
+	} else {
+	  sw.xMin.Cluster <- xlim[1]
+	  sw.xMax.Cluster <- xlim[2]
+	}
+	if (is.null(ylim)){
+	  sw.yMin.Cluster <- min( swMeanResponse.Cluster, na.rm=TRUE )
+	  sw.yMax.Cluster <- max( swMeanResponse.Cluster, na.rm=TRUE )
+	} else {
+	  sw.yMin.Cluster <- ylim[1]
+	  sw.yMax.Cluster <- ylim[2]
+	}
 	###*********************************************
 	###
 	### (by.wave == FALSE & combined.plot == TRUE)

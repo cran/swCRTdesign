@@ -5,33 +5,32 @@
 Power of Stepped Wedge Cluster Randomized Trial (SW CRT)
 }
 \description{
-\code{swPwr} returns (two-sided) power of treatment effect (\eqn{\theta}) for the specified SW CRT design using a linear models weighted least squares (WLS) approach for an immediate treatment effect (IT) model or an exposure time indicator (ETI) model (Kenny et al, 2022). The response/outcome of interest can be binomial or Gaussian distributed and is assumed to come from a model with random intercepts, random treatment effects, and random cluster-specific time effects. Variance components can be specified using either tau, eta, rho, and gamma, or icc and cac (see details).  If a random intercepts only model is used (i.e., eta and gamma are 0 and n is constant over clusters and time), then the power calculation is comparable to the closed-form formula of [Hussey and Hughes, 2007]. See [Voldal et al., 2020] for more guidance.  This function is also available as a Shiny app at https://swcrtdesign.shinyapps.io/stepped_wedge_power_calculation/.
+\code{swPwr} returns (two-sided) power for the treatment effect(s) from an immediate treatment effect (IT) model or an exposure time indicator (ETI) model (Kenny et al, 2022) for the specified SW CRT design using a linear models weighted least squares (WLS) approach. A cross-sectional or closed cohort sampling scheme can be specified. The response/outcome of interest can be binomial or Gaussian distributed and is assumed to come from a model with random intercepts, random treatment effects, random cluster-specific time effects, and, in the case of closed cohort sampling, an individual random effect. Variance components can be specified using either random effect variances (tau, eta, rho, gamma, and zeta) or icc, cac, iac (see details).  If a cross-sectional sampling, random intercepts only model is used (i.e., eta, rho, gamma and zeta are 0 and n is constant over clusters and time), then the power calculation is comparable to the closed-form formula of [Hussey and Hughes, 2007]. See [Voldal et al., 2020] for more guidance.  This function is also available as a Shiny app at https://swcrtdesign.shinyapps.io/stepped_wedge_power_calculation/.
 }
 \usage{
-swPwr(design, distn, n, mu0, mu1, H=NULL, sigma, tau, eta, rho, gamma,
-icc, cac, alpha=0.05, retDATA=FALSE, silent=FALSE)
+swPwr(design, distn, n, mu0, mu1, H=NULL, sigma, tau=0, eta=0, rho=0, gamma=0, zeta=0,
+icc=0, cac=1, iac=0, alpha=0.05, retDATA=FALSE, silent=FALSE)
 %
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{design}{
-list: A stepped wedge design object, typically from swDsn, that includes at least the following components:
-##             swDsn, swDsn.unique.clusters, clusters, n.clusters, total.time
+list: A stepped wedge design object, typically from \code{swDsn}, that includes at least the following components: swDsn, swDsn.unique.clusters, clusters, n.clusters, total.time, nTxLev, TxLev. Fractional treatment effects specified in \code{swDsn} are used in the calculation.
 }
   \item{distn}{
 character: Distribution assumed (\code{gaussian} or \code{binomial}).  Currently, 'Binomial' implies Bernoulli.
 }
   \item{n}{
-integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points; (vector) for each cluster at all time points; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time.  \code{n} can also be used to specify a design with transition periods (e.g. in the first time period that each sequence receives treatment, no observations are collected from that sequence).  Simply define \code{n} as a matrix with a sample size of 0 during every transition period.
+integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points that are not NA in design$swDsn; (vector) for each cluster at all time points that are not NA in design$swDsn; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time.  \code{n} can also be used to specify a design with transition periods (a transition period is a period, typically, immediately after treatment is introduced were no data are collected).  Simply define \code{n} as a matrix with a sample size of 0 during every transition period. This is equivalent to putting an NA in design$swDsn.
 }
   \item{mu0}{
 numeric (scalar): Mean outcome in the control group. See also documentation for H, below.
 }
   \item{mu1}{
-numeric (scalar): Mean outcome in the treatment group. Note: Treatment effect is the difference in means \eqn{\theta = \mu_1 - \mu_0}. See also documentation for H, below.
+numeric (scalar or vector): Mean outcome in the treatment group(s). The treatment effect is the difference in means \eqn{\theta = \mu_1 - \mu_0}. If \code{tx.effect.frac} is specified in the call to \code{swDsn} then the assumed treatment effect at exposure time k is \code{tx.effect.frac}[k]*\eqn{\theta}. For an IT model with multiple treatment levels the length of \code{mu1} should be equal to the number of treatment levels. See also documentation for H, below.
 }
   \item{H}{
-numeric (vector): If NULL, then swPwr assumes an immediate, constant treatment effect (IT) model. If not NULL, then an exposure time indicator (ETI) model is assumed and H should be a vector as long as the longest treatment effect lag (typically, number of time periods minus one). H specifies the desired linear combination of exposure time treatment effects. For example, in a stepped wedge trial with 5 time periods and four exposure times, H = rep(.25,4) gives the average treatment effect over the four exposure times; H = c(0,0,.5,.5) ignores the first two periods after the intervention is introduced and averages the remaining periods. mu0 and mu1 give expected values of the linear combination of exposure time treatment effects under the null and alternative hypotheses, respectively.
+numeric (vector): If NULL, then swPwr assumes an immediate, constant treatment effect (IT) model. If not NULL, then an exposure time indicator (ETI) model is assumed and H should be a vector as long as the longest exposure time (in a classic stepped wedge design, the longest exposure time is the number of time periods minus one). H specifies the desired linear combination of exposure time treatment effects. For example, in a stepped wedge trial with 5 time periods and four exposure times, H = rep(.25,4) gives the average treatment effect over the four exposure times; H = c(0,0,.5,.5) ignores the first two periods after the intervention is introduced and averages the remaining periods. Typically, the sum of H is 1.0; if not, it is renormalized to sum to 1.0. H can only be specified when there is a single intervention level (i.e. design$swDsn includes only NA,0,1; see cautions in help for \code{swDsn} about including NA periods when H is used). mu0 and mu1 give expected values of the linear combination of exposure time treatment effects under the null and alternative hypotheses, respectively. Do not use an ETI model (non-null \code{H}) if you specified a fractional treatment effect in \code{swDsn}.
 }
   \item{sigma}{
 numeric (scalar): Standard deviation when assuming Gaussian distribution (\code{distn=gaussian}). For binomial distribution \eqn{\sigma^2} is automatically set to \eqn{\bar{\mu}(1-\bar{\mu})} where \eqn{\bar{\mu} = (\mu_1 + \mu_0)/2}
@@ -48,11 +47,17 @@ numeric (scalar): Correlation between random intercepts and random treatment eff
   \item{gamma}{
 numeric (scalar): Standard deviation of random time effects.
 }
+  \item{zeta}{
+numeric (scalar): Standard deviation of individual effects for closed cohort sampling. Default is 0 which implies cross-sectional sampling. Values greater than 0 imply closed cohort sampling.
+}
   \item{icc}{
 numeric (scalar): Within-period intra-cluster correlation.  Can be used with CAC instead of tau, eta, rho, and gamma; see details.
 }
   \item{cac}{
 numeric (scalar): Cluster auto-correlation.  Can be used with ICC instead of tau, eta, rho, and gamma; see details.
+}
+  \item{iac}{
+numeric (scalar): Individual auto-correlation for closed cohort sampling.  Can be used with ICC and CAC instead of tau, eta, rho, gamma, and zeta; see details. Default is 0 which implies cross-sectional sampling. Values greater than 0 imply closed cohort sampling.
 }
   \item{alpha}{
 numeric (scalar): Two-sided statistical significance level.
@@ -61,7 +66,7 @@ numeric (scalar): Two-sided statistical significance level.
 logical: if TRUE, all stored (input, intermediate, and output) values of \code{swPwr} are returned. Default value is \code{FALSE}.
 }
   \item{silent}{
-logical: if TRUE, hides a warning about differences in argument order between version 3.0 and prior versions. When \code{n} is not a scalar, also hides reminder about order of entries in \code{n}.  Default value is \code{FALSE}.
+logical: if TRUE, hides most warning messages.  Default value is \code{FALSE}.
 }
 }
 \details{
@@ -80,12 +85,16 @@ where
 \deqn{ Z = \frac{ |\theta| }{ \sqrt{Var(\hat{\theta}_{WLS})} } }
 and \eqn{\Phi} is the cumulative distribution function of the standard normal \eqn{N(0,1)} distribution. If H is non-NULL then the \eqn{\mu} are assumed to be equal to H\eqn{\delta} where \eqn{\delta} is a vector of exposure time treatment effects.
 
-When eta (and rho) are 0, instead of using tau, eta, rho, and gamma, the icc and cac can be used to define the variability of the random intercepts and time effects.  In this model,
-\deqn{ ICC = \frac{\tau^2+\gamma^2}{\tau^2+\gamma^2+\sigma^2} }
+The value of zeta defines the samling scheme. When zeta = 0, cross-sectional sampling is assumed; if zeta > 0 then closed cohort sampling is assumed.
+
+When eta (and rho) are 0, instead of using tau, eta, rho, gamma and zeta, the icc, cac and iac can be used to define the variability of the random effects.  In this model,
+\deqn{ ICC = \frac{\tau^2+\gamma^2}{\tau^2+\gamma^2+\zeta^2+\sigma^2} }
 \deqn{ CAC = \frac{\tau^2}{\tau^2+\gamma^2} }
+\deqn{ IAC = \frac{\zeta^2}{\zeta^2+\sigma^2}}
+Choose one parameterization or the other, do not mix parameterizations.
 }
 \value{
-numeric (matrix): \code{swPwr} returns the power of treatment effect (\eqn{\theta}), where the variance of treatment effect is computed by WLS.  %%%% (if \eqn{\eta = 0}, then power computed using closed-form formula for variance is also given) if \code{retDATA = FALSE}.
+numeric (vector): \code{swPwr} returns the power of treatment effect(s), where the variance of treatment effect is computed by WLS.  %%%% (if \eqn{\eta = 0}, then power computed using closed-form formula for variance is also given) if \code{retDATA = FALSE}.
 
 numeric (list): \code{swPwr} returns all specified and computed items as objects of a list if \code{retDATA = TRUE}.
 %% *****SPECIFY WHAT THESE ARE!!!!!**********
@@ -102,7 +111,10 @@ numeric (list): \code{swPwr} returns all specified and computed items as objects
 		numeric (scalar): Mean outcome in the control group.
 	}
 	\item{mu1}{
-		numeric (scalar): Mean outcome in intervention group. Note: treatment effect is difference in means \eqn{\theta = \mu_1 - \mu_0}.
+		numeric (scalar): Mean outcome in intervention group(s). Note: treatment effect is difference in means \eqn{\theta = \mu_1 - \mu_0}.
+	}
+	\item{H}{
+  numeric (vector): H specifies the desired linear combination of exposure time treatment effects for a ETI model-based estimate.
 	}
 	\item{sigma}{
 		numeric (scalar): Standard deviation input. For binomial distribution, sigma = NA
@@ -119,11 +131,17 @@ numeric (list): \code{swPwr} returns all specified and computed items as objects
 	\item{gamma}{
 numeric (scalar): Standard deviation of random time effects.
   }
+  \item{zeta}{
+numeric (scalar): Standard deviation of individual random effects for closed cohort sampling.
+  }
   \item{icc}{
-numeric (scalar): Within-period intra-cluster correlation.  Can be used with CAC instead of tau, eta, rho, and gamma; see details.
+numeric (scalar): Within-period intra-cluster correlation.  Can be used with CAC and IAC instead of tau, eta, rho, gamma and zeta; see details.
   }
   \item{cac}{
-numeric (scalar): Cluster auto-correlation.  Can be used with ICC instead of tau, eta, rho, and gamma; see details.
+numeric (scalar): Cluster auto-correlation.  Can be used with ICC and IAC instead of tau, eta, rho, gamma and zeta; see details.
+  }
+  \item{iac}{
+numeric (scalar): Individual auto-correlation for closed cohort sampling.  Can be used with ICC and CAC instead of tau, eta, rho, gamma and zeta; see details.
   }
 	\item{alpha}{
 		numeric (scalar): Statistical significance level.
@@ -134,8 +152,10 @@ numeric (scalar): Cluster auto-correlation.  Can be used with ICC instead of tau
 	\item{Wmat}{
 		numeric (matrix): Covariance matrix for this SW CRT design.
 	}
+	\item{var}{Variance-covariance matrix of treatment effect(s). Can be used to calculate power for constrasts other than control versus treatment
+	}
 	\item{var.theta.WLS}{
-		numeric (scalar): Variance estimate of \eqn{\theta} using weighted least squares (WLS) for this SW CRT design.
+		numeric (scalar): Variance(s) of treatment effect(s) using weighted least squares (WLS) for this SW CRT design.
 	}
 	\item{pwrWLS}{
 		numeric (scalar): Power of treatment effect (\eqn{\theta}) using weighted least squares (WLS) for this SW CRT design.
@@ -152,9 +172,9 @@ numeric (scalar): Cluster auto-correlation.  Can be used with ICC instead of tau
 %	\item{var.theta.CLOSED}{
 %		numeric (scalar): Variance estimate of \eqn{\theta} using closed-form formula from Hughes et al. (2003) for this SW CRT design. Returned if \eqn{\eta \neq 0}--no random slopes.
 %	}
-	\item{pwrCLOSED}{
-		numeric (scalar): Power of treatment effect (\eqn{\theta}) using closed-form formula from Hughes, et al. (2003) for this SW CRT design. Returned if eta and gamma are 0 and n is constant over clusters and time.
-	}
+%	\item{pwrCLOSED}{
+%		numeric (scalar): Power of treatment effect (\eqn{\theta}) using closed-form formula from Hughes, et al. (2003) for this SW CRT design. Returned if eta and gamma are 0 and n is constant over clusters and time.
+%	}
 }
 \references{
 
@@ -177,14 +197,13 @@ James P Hughes, Navneet R Hakhu, and Emily C Voldal
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 %}
 \examples{
-library(swCRTdesign)
 # Example 1 (Random Intercepts Only, standard Stepped Wedge (SW) design)
 swPwr.Ex1.RIO.std <- swPwr(swDsn(c(6,6,6,6)), distn="binomial",
 n=120, mu0=0.05, mu1=0.035, tau=0.01, eta=0, rho=0, gamma=0, alpha=0.05, retDATA=FALSE)
 swPwr.Ex1.RIO.std
 
 # Example 2 (Random Intercepts Only, extended SW design)
-swPwr.Ex1.RIO.extend <- swPwr(swDsn(c(6,6,6,6), extra.time=3), distn="binomial",
+swPwr.Ex1.RIO.extend <- swPwr(swDsn(c(6,6,6,6), extra.trt.time=3), distn="binomial",
 n=120, mu0=0.05, mu1=0.035, tau=0.01, eta=0, rho=0, gamma=0,
 alpha=0.05, retDATA=FALSE)
 swPwr.Ex1.RIO.extend
@@ -231,6 +250,29 @@ swPwr.Ex1.matrix
 swPwr.Ex1.icccac <- swPwr(swDsn(c(6,6,6,6)), distn="gaussian",
 n=120, mu0=0.05, mu1=0.035, sigma=0.1, icc=0.02, cac=0.125, alpha=0.05, retDATA=FALSE)
 swPwr.Ex1.icccac
+
+# Example 9 (Random time effect, closed cohort sampling)
+sample_size = matrix(c(rep(c(20,20,20,20,20,20,20,20,20,20,20,20,20,20),5),
+                       rep(c( 0,20,20,20,20,20,20,20,20,20,20,20,20,20),5),
+                       rep(c( 0, 0,20,20,20,20,20,20,20,20,20,20,20,20),5),
+                       rep(c( 0, 0, 0,20,20,20,20,20,20,20,20,20,20,20),5),
+                       rep(c( 0, 0, 0, 0,20,20,20,20,20,20,20,20,20,20),5)),
+                       25,14,byrow=TRUE)
+swPwr.Ex9 <- swPwr(design=swDsn(c(5,5,5,5,5),extra.ctl.time=3,extra.trt.time=5),
+      distn="gaussian",n=sample_size,mu0=-0.4,mu1=0.4,
+      sigma=1.0,tau=sqrt(.1316),gamma=sqrt(.1974),eta=0,rho=0,zeta=sqrt(2.5),
+      silent=TRUE)
+swPwr.Ex9
+
+#Example 10 (Periods with no data, multiple treatment levels)
+stdy <- swDsn(c(6,6,6,6),swBlk=matrix(c(0,1,2,2,2,2,
+                                         NA,0,1,2,2,2,
+                                         NA,NA,0,1,2,2,
+                                         NA,NA,NA,0,1,2),4,6,byrow=TRUE))
+swPwr.Ex10 <-swPwr(stdy, distn="binomial",n=120, mu0=0.05, mu1=c(0.035,0.03),
+      tau=0.01, eta=0, rho=0, gamma=0, alpha=0.05, retDATA=TRUE, silent=TRUE)
+swPwr.Ex10
+
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

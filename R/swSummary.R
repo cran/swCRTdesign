@@ -2,7 +2,21 @@ swSummary <-
 function (response.var, tx.var, time.var, cluster.var, data=NULL,
     type = "mean", digits = 16, fcn.Call = FALSE)
 {
-  #Last update: unknown; added comments 10/23/2019, v. 3.1
+  #Last update: Jim Hughes 4/30/23 v4.0
+  ##########
+  #Helper Functions
+  ##########
+  VecMatch = function(vector,matrix){
+  # Find the row index of matrix which matches vector
+    result=0
+    for (k in 1:nrow(matrix)){
+      if (all(vector==matrix[k,],na.rm=TRUE) & all(is.na(vector)==is.na(matrix[k,]))) {
+        result = k
+        break()
+      }
+    }
+    result
+  }
   ##########
   #Unpack data
   ##########
@@ -36,23 +50,33 @@ function (response.var, tx.var, time.var, cluster.var, data=NULL,
     ##########
     tmpCluster <- sort(unique(df$cluster))#List of unique cluster IDs
     tmpTime <- sort(unique(df$time))#List of unique time IDs
-    tmpWave <- NULL#Initialize list of wave IDs (for each cluster)
+    tmpWaveMat <- NULL
     for (clusterID in tmpCluster) {
         tmpPreWave <- NULL
         for (timeID in tmpTime) {
-            tmpPreWave <- c(tmpPreWave, 1 - mean(df[df$cluster ==
-                clusterID & df$time == timeID, "tx"]))
+            tmpTx.Wave.Time.Vec <- df[df$cluster == clusterID & df$time == timeID, "tx"]
+            n.Wave.Time <- sum(!is.na(tmpTx.Wave.Time.Vec))
+            if (n.Wave.Time==0){
+              tmpPreWave <- c(tmpPreWave, NA)
+            } else {
+              tmpPreWave <- c(tmpPreWave, mean(tmpTx.Wave.Time.Vec,na.rm=TRUE))
+            }
         }
-        tmpWave <- c(tmpWave, sum(tmpPreWave))
+      tmpWaveMat <- rbind(tmpWaveMat,tmpPreWave)        
     }
-tmpWaveMat <- cbind(1:length(unique(tmpWave)), as.vector(table(tmpWave)) )
-tmpWave <- as.vector( unlist( apply(tmpWaveMat, 1, function(z) rep(z[1], each=z[2])) ) )#For each cluster, list of wave IDs
-    tmpClusterWave <- cbind(tmpCluster, tmpWave)
+uniquewave = unique(tmpWaveMat,MARGIN=1)
+n.waves <- nrow(uniquewave)
+tmpWave <- NULL
+for (clusterID in tmpCluster) {
+  tmpWave <- c(tmpWave,VecMatch(tmpWaveMat[clusterID,],uniquewave))
+}
+tmpClusterWave <- cbind(tmpCluster, tmpWave)
     df$wave <- df$cluster#Initialize wave column, and fill in below with a wave ID for each row
     for (clusterID in tmpCluster) {
         df[df$cluster == clusterID & df$wave == clusterID, ]$wave <- tmpClusterWave[clusterID,
             "tmpWave"]
     }
+
     ##########
     #Collect info for each wave
     ##########
@@ -66,20 +90,27 @@ tmpWave <- as.vector( unlist( apply(tmpWaveMat, 1, function(z) rep(z[1], each=z[
         tmpResponse.Wave.Time.sum <- NULL
         tmpResponse.Wave.Time.n <- NULL
         for (timeID in tmpTime) {
-            tmpTx.Wave.Time.Vec <- df[df$wave == waveID & df$time ==
-                timeID, "tx"]#Treatment indicators for people from this wave at this time
-            tmpTx.Wave.Time.mean <- c(tmpTx.Wave.Time.mean, mean(tmpTx.Wave.Time.Vec,
-                na.rm = TRUE))#Append treatment status at this wave and time to tmpTx.Wave.Time.mean
             tmpResponse.Wave.Time.Vec <- df[df$wave == waveID &
                 df$time == timeID, "response"]#Responses for people from this wave at this time
-            tmpResponse.Wave.Time.mean <- c(tmpResponse.Wave.Time.mean,
+            n.Wave.Time <- sum(!is.na(tmpResponse.Wave.Time.Vec))
+            if (n.Wave.Time==0){
+              tmpTx.Wave.Time.mean <- c(tmpTx.Wave.Time.mean,NA)
+              tmpResponse.Wave.Time.mean <- c(tmpResponse.Wave.Time.mean,NA)
+              tmpResponse.Wave.Time.sum <- c(tmpResponse.Wave.Time.sum,NA)
+              tmpResponse.Wave.Time.n <- c(tmpResponse.Wave.Time.n,0)
+            } else {
+              tmpTx.Wave.Time.Vec <- df[df$wave == waveID & df$time ==
+                timeID, "tx"]#Treatment indicators for people from this wave at this time
+              tmpTx.Wave.Time.mean <- c(tmpTx.Wave.Time.mean, mean(tmpTx.Wave.Time.Vec,
+                na.rm = TRUE))#Append treatment status at this wave and time to tmpTx.Wave.Time.mean
+              tmpResponse.Wave.Time.mean <- c(tmpResponse.Wave.Time.mean,
                 as.numeric(sprintf(fmt = paste("%8.", digits,
                   "f", sep = ""), mean(tmpResponse.Wave.Time.Vec,
                   na.rm = TRUE))))#Append average response at this wave and time
-            tmpResponse.Wave.Time.sum <- c(tmpResponse.Wave.Time.sum,
+              tmpResponse.Wave.Time.sum <- c(tmpResponse.Wave.Time.sum,
                 sum(tmpResponse.Wave.Time.Vec, na.rm = TRUE))#Append sum of responses at this wave and time; not sure why this doesn't also have the rounding option (future extension?)
-            tmpResponse.Wave.Time.n <- c(tmpResponse.Wave.Time.n,
-                sum(!is.na(tmpResponse.Wave.Time.Vec)))#Append number of recorded responses at this wave and time
+              tmpResponse.Wave.Time.n <- c(tmpResponse.Wave.Time.n,n.Wave.Time)#Append number of recorded responses at this wave and time
+            }
         }
         tmpTx.Wave.mean <- rbind(tmpTx.Wave.mean, tmpTx.Wave.Time.mean)
         tmpResponse.Wave.mean <- rbind(tmpResponse.Wave.mean,
@@ -117,22 +148,29 @@ tmpWave <- as.vector( unlist( apply(tmpWaveMat, 1, function(z) rep(z[1], each=z[
         tmpResponse.Cluster.Time.sum <- NULL
         tmpResponse.Cluster.Time.n <- NULL
         for (timeID in tmpTime) {
-            tmpTx.Cluster.Time.Vec <- df[df$cluster == clusterID &
-                df$time == timeID, "tx"]#Treatment indicators for people from this cluster at this time
-            tmpTx.Cluster.Time.mean <- c(tmpTx.Cluster.Time.mean,
-                mean(tmpTx.Cluster.Time.Vec, na.rm = TRUE))#Append treatment status at this cluster and time
             tmpResponse.Cluster.Time.Vec <- df[df$cluster ==
                 clusterID & df$time == timeID, "response"]#Responses for people from this cluster at this time
-            tmpResponse.Cluster.Time.mean <- c(tmpResponse.Cluster.Time.mean,
+            n.Cluster.Time = sum(!is.na(tmpResponse.Cluster.Time.Vec))
+            if (n.Cluster.Time==0){
+              tmpTx.Cluster.Time.mean <- c(tmpTx.Cluster.Time.mean,NA)
+              tmpResponse.Cluster.Time.mean <- c(tmpResponse.Cluster.Time.mean,NA)
+              tmpResponse.Cluster.Time.sum <- c(tmpResponse.Cluster.Time.sum,NA)
+              tmpResponse.Cluster.Time.n <- c(tmpResponse.Cluster.Time.n,0)
+            } else {
+              tmpTx.Cluster.Time.Vec <- df[df$cluster == clusterID &
+                df$time == timeID, "tx"]#Treatment indicators for people from this cluster at this time
+              tmpTx.Cluster.Time.mean <- c(tmpTx.Cluster.Time.mean,
+                mean(tmpTx.Cluster.Time.Vec, na.rm = TRUE))#Append treatment status at this cluster and time
+              tmpResponse.Cluster.Time.mean <- c(tmpResponse.Cluster.Time.mean,
                 as.numeric(sprintf(fmt = paste("%8.", digits,
                   "f", sep = ""), mean(tmpResponse.Cluster.Time.Vec,
                   na.rm = TRUE))))#Append average response at this cluster and time
-            tmpResponse.Cluster.Time.sum <- c(tmpResponse.Cluster.Time.sum,
+              tmpResponse.Cluster.Time.sum <- c(tmpResponse.Cluster.Time.sum,
                 as.numeric(sprintf(fmt = paste("%8.", digits,
                   "f", sep = ""), sum(tmpResponse.Cluster.Time.Vec,
                   na.rm = TRUE))))#Append sum of responses at this cluster and time
-            tmpResponse.Cluster.Time.n <- c(tmpResponse.Cluster.Time.n,
-                sum(!is.na(tmpResponse.Cluster.Time.Vec)))#Append number of recorded responses at this cluster and time
+              tmpResponse.Cluster.Time.n <- c(tmpResponse.Cluster.Time.n, n.Cluster.Time)#Append number of recorded responses at this cluster and time
+            }
         }
         tmpTx.Cluster.mean <- rbind(tmpTx.Cluster.mean, tmpTx.Cluster.Time.mean)
         tmpResponse.Cluster.mean <- rbind(tmpResponse.Cluster.mean,

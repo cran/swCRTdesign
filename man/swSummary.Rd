@@ -17,7 +17,7 @@ type="mean", digits=16, fcn.Call=FALSE)
 numeric(vector): Response (Outcome) variable.
 }
   \item{tx.var}{
-numeric(vector): Treatment (Predictor of Interest) variable. Typically, 0=placebo, 1=intervention, values between 0 and 1 correspond to fractional treatment/intervention effects, and values greater than 1 correspond to other treatment options. 
+numeric(vector): Treatment (Predictor of Interest) variable. Typically, 0=placebo, 1=intervention, and values greater than 1 correspond to other treatment levels. 
 }
   \item{time.var}{
 integer(vector): Time (points) variable, corresponding to the time points when data were collected during the SW CRT.
@@ -53,7 +53,7 @@ The SW design.
 The unique clusters (i.e., rows) SW design.		
 }
 	\item{n.waves}{
-Number of waves.
+Number of waves. Note that this is usually, but not necessarily, the same as data$n.waves. See example 2.
 }
 	\item{clusters}{
 Clusters per wave.		
@@ -92,23 +92,13 @@ James P Hughes and Navneet R Hakhu
 %}
 \examples{
 library(swCRTdesign)
-# Example 1 (Generating SW CRT data)
-# (binary response with 1 missing value, 5 clusters, 4 time points)
-
-n.Ex1 <- 120
-p0.Ex1 <- 0.05
-clusters.Ex1 <- c(2,2,1)
-dsn.Ex1 <- swDsn( clusters=clusters.Ex1 )
-time.Ex1 <- c(1:dsn.Ex1$total.time)*4 - 4
-response.Ex1 <- rbinom(n.Ex1 * dsn.Ex1$n.clusters * dsn.Ex1$total.time, 1, p0.Ex1)
-response.Ex1[1] <- NA
-tx.Ex1 <- as.vector( apply( dsn.Ex1$swDsn, 1, function(z){rep(z, n.Ex1)}) )
-time.Ex1 <- rep( time.Ex1, n.Ex1 * dsn.Ex1$n.clusters )
-cluster.Ex1 <- rep( 1:dsn.Ex1$n.clusters, each=n.Ex1 * dsn.Ex1$total.time )
-data.Ex1 <- data.frame(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1)
+# Example 1 
+# Generate binary response with 5 clusters, 4 time points
+data.Ex1 <- swSim(swDsn(c(2,2,1)),family=binomial(link="identity"), n=120,
+                     mu0=0.25, mu1=0.30,time.effect=0, tau=0.05, gamma=.01)
 
 ## Example 1 (type="mean", by cluster and by wave)
-swSummary.Ex1.mean <- swSummary(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, 
+swSummary.Ex1.mean <- swSummary(response.var, tx.var, time.var, cluster.var, 
 data=data.Ex1, type="mean", digits=3)
 
 swSummary.Ex1.mean$response.cluster
@@ -116,7 +106,7 @@ swSummary.Ex1.mean$response.cluster
 swSummary.Ex1.mean$response.wave
 
 # Example 1 (type="sum", by cluster and by wave)
-swSummary.Ex1.sum <- swSummary(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, 
+swSummary.Ex1.sum <- swSummary(response.var, tx.var, time.var, cluster.var, 
 data=data.Ex1, type="sum")
 
 swSummary.Ex1.sum$response.cluster
@@ -124,13 +114,42 @@ swSummary.Ex1.sum$response.cluster
 swSummary.Ex1.sum$response.wave
 
 ## Example 1 (type="n", by cluster and by wave)
-swSummary.Ex1.n <- swSummary(response.Ex1, tx.Ex1, time.Ex1, cluster.Ex1, 
+swSummary.Ex1.n <- swSummary(response.var, tx.var, time.var, cluster.var, 
 data=data.Ex1, type="n")
 
 swSummary.Ex1.n$response.cluster
 
 swSummary.Ex1.n$response.wave
 
+## Example 2
+design2 <- swDsn(clusters=c(6,6,6,6)) 
+# design2$n.waves says 4 waves
+nmat2 = rbind(matrix(rep(c(120,120,120,120,120),6),6,5,byrow=TRUE),
+              matrix(rep(c(120,120,120,120,120),3),3,5,byrow=TRUE),
+              matrix(rep(c(0,120,120,120,120),3),3,5,byrow=TRUE),
+              matrix(rep(c(0,0,120,120,120),6),6,5,byrow=TRUE),
+              matrix(rep(c(0,0,0,120,120),6),6,5,byrow=TRUE))
+swGenData2 <- swSim( design2,family=binomial(link="logit"), n=nmat2,
+                     mu0=log(0.1/0.9), mu1=log(0.9) + log(0.1/0.9),
+                     time.effect=0, tau=0.2, time.lab=seq(0,12,3))
+swSummary(response.var, tx.var, time.var, cluster.var, swGenData2,
+          type="mean", digits=3)
+# This summary create 5 waves
+#
+# The following is equivalent to above
+design2b <- swDsn(c(6,3,3,6,6),
+                   swBlk=matrix(c(0,1,1,1,1,
+                                  0,0,1,1,1,
+                                  NA,0,1,1,1,
+                                  NA,NA,0,1,1,
+                                  NA,NA,NA,0,1),5,5,byrow=TRUE)) 
+# design2b$n.waves says 5 waves
+swGenData2b <- swSim(design2b,family=binomial(link="logit"), n=120,
+                      mu0=log(0.1/0.9), mu1=log(0.9) + log(0.1/0.9),
+                      time.effect=0, tau=0.2, time.lab=seq(0,12,3))
+swSummary(response.var, tx.var, time.var, cluster.var, swGenData2b,
+          type="mean", digits=3)
+# This summary create 5 waves          
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
