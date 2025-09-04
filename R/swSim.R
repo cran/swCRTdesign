@@ -3,8 +3,8 @@ swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect,
                          retTimeOnTx=TRUE, silent = FALSE, nocheck=FALSE)
 {
   #
-  #Last update: 4/28/23, v. 4.0, Jim Hughes
-  # Note: timeOnTx always returned (argument retTimeOnTx removed)
+  #Last update: 2/11/25, v. 4.1, Jim Hughes
+  # Note: timeOnTx always returned (argument retTimeOnTx ignored)
   #In this file, 'random slopes' and 'random treatment effects' are used interchangeably
   ##########
   # Helper functions
@@ -44,7 +44,7 @@ swSim <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect,
     }
     } else {
     if(design$nTxLev!=length(mu1)){
-      stop("Length of mu1 must correspond to number of treatment levels specified in swDsn1")
+      stop("Length of mu1 must correspond to number of treatment levels specified in swDsn")
     }
     }
   if (distn == 'gaussian' & missing(sigma)) stop("If distribution is gaussian, a value for sigma must be entered")

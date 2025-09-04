@@ -19,13 +19,12 @@ One can choose to use the \code{extra.ctl.time}, \code{extra.trt.time}, and \cod
 swDsn(clusters, tx.effect.frac=1, extra.ctl.time=0, extra.trt.time=0, 
 all.ctl.time0=TRUE, swBlk, extra.time=NULL)
 }
-%- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{clusters}{
 integer (vector): Number of clusters for each wave (e.g. c(6,6,6,6) specifies four waves with 6 clusters in each wave). A value of 0 in the vector means that no clusters introduce the intervention at a given time (see examples). Note that 0 clusters in a wave is not allowed when using the swBlk specification.
 }
   \item{tx.effect.frac}{
-numeric (scalar or vector): Relative treatment effect upon crossing over from control. Note that this is not the treatment effect (the treatment effect is specified in the call to other functions such as \code{swPwr} or \code{swSim})!  If \code{tx.effect.frac} is set to a scalar with value of 1, the standard SW CRT treatment effect will be presumed. If code{tx.effect.frac} is set to a scalar with a fractional value between 0 and 1, then only the first time point upon crossing over from control will have fractional relative treatment effect; the remaining exposure times will have a relative treatment effect of 1. If a vector of fractional treatment effect is specified, each element of the vector corresponds to the (fractional) treatment effect upon crossing over from control; if the length of the vector is less than total number of exposure times, the remaining time points will have a relative treatment effect value of 1; if the length of the vector is greater than total number of time points after crossing over, not all elements of \code{tx.effect.frac} will be used. The default value is (scalar) 1.
+numeric (scalar or vector): Relative treatment effect upon crossing over from control. Note that this is not the treatment effect (the treatment effect is specified in the call to other functions such as \code{swPwr} or \code{swSim}).  If \code{tx.effect.frac} is set to a scalar with value of 1, the standard SW CRT treatment effect will be presumed. If \code{tx.effect.frac} is set to a scalar with a fractional value between 0 and 1, then only the first time point upon crossing over from control will have fractional relative treatment effect; the remaining exposure times will have a relative treatment effect of 1. If a vector of fractional treatment effect is specified, each element of the vector corresponds to the (fractional) treatment effect upon crossing over from control; if the length of the vector is less than total number of exposure times, the remaining time points will have a relative treatment effect value of 1; if the length of the vector is greater than total number of time points after crossing over, not all elements of \code{tx.effect.frac} will be used. The default value is (scalar) 1.
 }
   \item{extra.ctl.time}{
 integer (scalar): Number of additional time steps during the control period beyond the standard SW CRT design. The default value is 0.
@@ -44,18 +43,19 @@ Note that the ETI model of Kenny et al (2022) implies a different intervention l
   integer (scalar): deprecated; if used, replaces extra.trt.time.
   }
 }
+
 \details{
 The \code{clusters} argument is required. After that, a design may be specified using the \code{tx.effect.frac}, \code{extra.ctrl.time}, \code{extra.trt.time}, \code{all.ctl.time0} arguments or the \code{swBlk} argument:
 
-swDsn(clusters, tx.effect.frac=1, extra.ctl.time=0, extra.trt.time=0, all.ctl.time0=TRUE)
+\code{swDsn(clusters, tx.effect.frac=1, extra.ctl.time=0, extra.trt.time=0, all.ctl.time0=TRUE)}
  
  or 
  
-swDsn(clusters, swBlk)
+\code{swDsn(clusters, swBlk)}
 }
+
 \value{
 numeric (list): Returns the following user-specified and computed objects
-%% *****SPECIFY WHAT THESE ARE!!!!!**********
 	\item{swDsn}{
 		numeric (matrix):  schematic representation of the specified SW CRT design. Number of clusters is equal to the number of rows of the matrix and total number of time intervals is equal to the number of columns of the matrix. \code{swDsn[i,j]} gives the intervention status for cluster \code{i} at time \code{j} and has possible values NA (no data), 0 (control), or >=1 (intervention levels).
 	}

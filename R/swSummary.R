@@ -1,8 +1,8 @@
 swSummary <-
 function (response.var, tx.var, time.var, cluster.var, data=NULL,
-    type = "mean", digits = 16, fcn.Call = FALSE)
+    type = "mean", imputeNA = FALSE, digits = 16, fcn.Call = FALSE)
 {
-  #Last update: Jim Hughes 4/30/23 v4.0
+  #Last update: Jim Hughes 4/4/25 v4.1
   ##########
   #Helper Functions
   ##########
@@ -44,12 +44,17 @@ function (response.var, tx.var, time.var, cluster.var, data=NULL,
         Time <- time.var
         Cluster <- cluster.var
     }
-    df <- data.frame(cbind(Response, Tx, Cluster, Time))
-    names(df) <- c("response", "tx", "cluster", "time")
+#    df <- data.frame(cbind(Response, Tx, Cluster, Time))
+#    names(df) <- c("response", "tx", "cluster", "time")
+    df <- data.frame(response=Response, tx=Tx, cluster=Cluster, time=Time)
+    miss = is.na(df$cluster) | is.na(df$time)
+    df = df[!miss,]
+    if (sum(miss)>0) warning(sum(miss)," observations with missing cluster or time removed from the data")
     ##########
     ##########
     tmpCluster <- sort(unique(df$cluster))#List of unique cluster IDs
     tmpTime <- sort(unique(df$time))#List of unique time IDs
+    nTime <- length(tmpTime)
     tmpWaveMat <- NULL
     for (clusterID in tmpCluster) {
         tmpPreWave <- NULL
@@ -62,21 +67,30 @@ function (response.var, tx.var, time.var, cluster.var, data=NULL,
               tmpPreWave <- c(tmpPreWave, mean(tmpTx.Wave.Time.Vec,na.rm=TRUE))
             }
         }
+      if (imputeNA){
+          for (i in 1:nTime){
+            if (i > 1){
+              tmpPreWave[i]=ifelse(is.na(tmpPreWave[i]) & tmpPreWave[i-1]==1,1,tmpPreWave[i])
+            }
+            if (i < nTime){
+              tmpPreWave[i]=ifelse(is.na(tmpPreWave[i]) & tmpPreWave[i+1]==0,0,tmpPreWave[i])
+            }
+          }
+        }
       tmpWaveMat <- rbind(tmpWaveMat,tmpPreWave)        
     }
 uniquewave = unique(tmpWaveMat,MARGIN=1)
 n.waves <- nrow(uniquewave)
 tmpWave <- NULL
 for (clusterID in tmpCluster) {
-  tmpWave <- c(tmpWave,VecMatch(tmpWaveMat[clusterID,],uniquewave))
+  tmpWave <- c(tmpWave,VecMatch(tmpWaveMat[match(clusterID,tmpCluster),],uniquewave))
 }
 tmpClusterWave <- cbind(tmpCluster, tmpWave)
-    df$wave <- df$cluster#Initialize wave column, and fill in below with a wave ID for each row
+    df$wave <- match(df$cluster,tmpCluster)#Initialize wave column, and fill in below with a wave ID for each row
     for (clusterID in tmpCluster) {
-        df[df$cluster == clusterID & df$wave == clusterID, ]$wave <- tmpClusterWave[clusterID,
+        df[df$cluster == clusterID & df$wave == match(clusterID,tmpCluster), ]$wave <- tmpClusterWave[match(clusterID,tmpCluster),
             "tmpWave"]
     }
-
     ##########
     #Collect info for each wave
     ##########
@@ -172,6 +186,16 @@ tmpClusterWave <- cbind(tmpCluster, tmpWave)
               tmpResponse.Cluster.Time.n <- c(tmpResponse.Cluster.Time.n, n.Cluster.Time)#Append number of recorded responses at this cluster and time
             }
         }
+        if (imputeNA){
+          for (i in 1:nTime){
+            if (i > 1){
+              tmpTx.Cluster.Time.mean[i]=ifelse(is.na(tmpTx.Cluster.Time.mean[i]) & tmpTx.Cluster.Time.mean[i-1]==1,1,tmpTx.Cluster.Time.mean[i])
+            }
+            if (i < nTime){
+              tmpTx.Cluster.Time.mean[i]=ifelse(is.na(tmpTx.Cluster.Time.mean[i]) & tmpTx.Cluster.Time.mean[i+1]==0,0,tmpTx.Cluster.Time.mean[i])
+            }
+          }
+        }
         tmpTx.Cluster.mean <- rbind(tmpTx.Cluster.mean, tmpTx.Cluster.Time.mean)
         tmpResponse.Cluster.mean <- rbind(tmpResponse.Cluster.mean,
             tmpResponse.Cluster.Time.mean)
@@ -202,22 +226,21 @@ tmpClusterWave <- cbind(tmpCluster, tmpWave)
     ##########
     if (type == "mean") {
         rslt <- list(swDsn = tmpTx.Cluster.mean, swDsn.unique.clusters = tmpTx.Wave.mean,
-            n.waves = length(unique(tmpWave)), clusters = as.vector(table(tmpWave)),
+            swDsn.waves=tmpWave, n.waves = length(unique(tmpWave)), clusters = as.vector(table(tmpWave)),
             n.clusters = length(unique(tmpCluster)), time.at.each.wave = unique(tmpTime),
             response.cluster = tmpResponse.Cluster.mean, response.wave = tmpResponse.Wave.mean)
     }
     else if (type == "sum") {
         rslt <- list(swDsn = tmpTx.Cluster.mean, swDsn.unique.clusters = tmpTx.Wave.mean,
-            n.waves = length(unique(tmpWave)), clusters = as.vector(table(tmpWave)),
+            swDsn.waves=tmpWave, n.waves = length(unique(tmpWave)), clusters = as.vector(table(tmpWave)),
             n.clusters = length(unique(tmpCluster)), time.at.each.wave = unique(tmpTime),
             response.cluster = tmpResponse.Cluster.sum, response.wave = tmpResponse.Wave.sum)
     }
     else if (type == "n") {
-        rslt <- list(type = type, swDsn = tmpTx.Cluster.mean,
-            swDsn.unique.clusters = tmpTx.Wave.mean, n.waves = length(unique(tmpWave)),
-            clusters = as.vector(table(tmpWave)), n.clusters = length(unique(tmpCluster)),
-            time.at.each.wave = unique(tmpTime), response.cluster = tmpResponse.Cluster.n,
-            response.wave = tmpResponse.Wave.n)
+        rslt <- list(type = type, swDsn = tmpTx.Cluster.mean, swDsn.unique.clusters = tmpTx.Wave.mean, 
+            swDsn.waves=tmpWave, n.waves = length(unique(tmpWave)), clusters = as.vector(table(tmpWave)), 
+            n.clusters = length(unique(tmpCluster)), time.at.each.wave = unique(tmpTime), 
+            response.cluster = tmpResponse.Cluster.n, response.wave = tmpResponse.Wave.n)
     }
     rslt
 }

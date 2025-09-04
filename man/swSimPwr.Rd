@@ -9,7 +9,7 @@ Simulating power for Stepped Wedge Cluster Randomized Trials (SW CRT)
 }
 \usage{
 swSimPwr(design, family, n, mu0, mu1, time.effect=0, H = NULL, 
-sigma, tau=0, eta=0, rho=0, gamma=0,zeta=0, icc=0, cac=1, iac=0, 
+sigma, tau=0, eta=0, rho=0, gamma=0,zeta=0, icc=0, cac=1, iac=0, ar=1, 
 alpha = 0.05, nsim = 500, retDATA = FALSE, silent = FALSE, counter=TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -62,6 +62,9 @@ numeric (scalar): Cluster auto-correlation on the appropriate scale.  Can be use
   \item{iac}{
 numeric (scalar): Individual auto-correlation for closed cohort sampling on the appropriate scale. Can be used with ICC and CAC instead of tau, eta, rho, gamma, and zeta when the outcome is gaussian. Default is 0 which implies cross-sectional sampling. Values greater than 0 imply closed cohort sampling.
 }
+ \item{ar}{
+numeric (scalar): Autocorrelation for exponential decay structure between periods within a cluster as described in Kasza et al (2019a;2019b). Available for cross-sectional sampling only (i.e. zeta=0 and iac=0). Default is ar=1 (no exponential decay). See details.
+ }
   \item{alpha}{
 numeric (scalar): Desired alpha level for a two-sided test.
 }
@@ -80,7 +83,17 @@ logical: if TRUE, show a counter for the simulations. Default value is \code{TRU
 }
 
 \details{
-\code{swSimPwr} uses a simulation approach to compute the two-sided statistical power for testing the hypotheses \eqn{Ho: \mu_1 - \mu_0 = 0} if H is NULL or \eqn{Ho: \sum H*(\mu_1 - \mu_0) = 0} if H is non-NULL. swSim is called to generate \code{nsim} simulations and then \code{lmer} or \code{glmer} is used to analyze each simulated dataset. The simulated power is equal to the proportion of p-values from \code{lmer}/\code{glmer} that are less than or equal to alpha. For small sample sizes it is recommended that the user run a simulation under the null to check the accuracy of the simulated type I error rate. Optionally, a counter is printed as each simulation is completed.
+\code{swSimPwr} uses a simulation approach to compute the two-sided statistical power 
+for testing the hypotheses \eqn{Ho: \mu_1 - \mu_0 = 0} if H is NULL or 
+\eqn{Ho: \sum H*(\mu_1 - \mu_0) = 0} if H is non-NULL. If \code{ar=1} then \code{swSim} is called to 
+generate \code{nsim} simulations and then \code{lmer} or \code{glmer} is used to 
+analyze each simulated dataset. If \code{ar!=1} then \code{swSim2} is called to 
+generate \code{nsim} simulations and then \code{glmmTMB} is used to 
+analyze each simulated dataset. The simulated power is equal to the proportion of 
+p-values from \code{lmer}/\code{glmer} that are less than or equal to alpha. For 
+small sample sizes it is recommended that the user run a simulation under the null 
+to check the accuracy of the simulated type I error rate. Optionally, a counter 
+is printed as each simulation is completed.
 }
 
 \value{

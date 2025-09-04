@@ -1,8 +1,9 @@
 swSimPwr <- function (design, family, n, mu0, mu1, time.effect=0, H = NULL, sigma, tau=0,
-                      eta=0, rho=0, gamma=0, zeta=0, icc=0, cac=1, iac=0, alpha = 0.05, nsim = 500, retDATA = FALSE, silent = FALSE, counter=TRUE)
+                      eta=0, rho=0, gamma=0, zeta=0, icc=0, cac=1, iac=0, ar=1, alpha = 0.05, nsim = 500, retDATA = FALSE, silent = FALSE, counter=TRUE)
 {
 #
-#Last update: 5/22/23, v. 4.0, Jim Hughes
+#Last update: 2/11/25, v. 4.1, Jim Hughes
+#  library(glmmTMB)
   ##########
   # Helper functions
   ##########
@@ -62,6 +63,12 @@ swSimPwr <- function (design, family, n, mu0, mu1, time.effect=0, H = NULL, sigm
   if(param.re.any == TRUE & param.icc.any == TRUE){
     stop("The two parameterizations (random effects and ICC/CAC/IAC) are mutually exclusive.  Either enter values for ICC, CAC (and IAC, if cohort design), or tau, eta, gamma, rho (and zeta, if cohort design).")
   }
+  if (ar!=1 & (zeta!=0 | iac!=0)) {
+    stop("autoregressive structure (ar!=1) only allowed with cross-sectional sampling")
+  }
+  if (ar!=1 & (eta>0 | gamma>0)) {
+    stop("random treatment effect and tandom time effect not allowed with autoregressive structure (ar!=1)")
+  }
   #If using ICC/CAC/IAC, translate to random effects
   if (param.icc.any == TRUE){
     #Check range restrictions
@@ -103,6 +110,9 @@ swSimPwr <- function (design, family, n, mu0, mu1, time.effect=0, H = NULL, sigm
   if(rho < -1 | rho > 1){
     stop("Rho must be a numeral between -1 and 1.")
   }
+  if(ar < -1 | ar > 1){
+    stop("ar must be a numeral between -1 and 1.")
+  } 
   if(tau < 0 | eta < 0 | gamma < 0 | zeta < 0){
     stop("Tau, eta, gamma and zeta must be non-negative numerals.")
   }
@@ -118,8 +128,8 @@ swSimPwr <- function (design, family, n, mu0, mu1, time.effect=0, H = NULL, sigm
   if (distn != "gaussian" & log.gaussian == TRUE){
     stop("The log.gaussian=TRUE option must be paired with a Gaussian family.")
   }
-  if (length(tau) > 1 | length(eta) > 1 | length(zeta) > 1) {
-    stop("Function cannot simulate stepped wedge design data for tau-vector, zeta-vector or eta-vector; tau, zeta and eta must be scalars.")
+  if (length(tau) > 1 | length(eta) > 1 | length(zeta) > 1 | length(ar) > 1) {
+    stop("Function cannot simulate stepped wedge design data for tau-vector, zeta-vector, eta-vector or ar-vector; tau, zeta, eta and ar must be scalars.")
   }
   if (any(rowSums(design$swDsn,na.rm=TRUE) == 0)) {
     warning("For the specified total number of clusters (I), total number of time periods (J), and number of cluster repetitions (I.rep), the specified stepped wedge design has at least one cluster which does not crossover from control(0) to treatment(1) arm.")
@@ -146,7 +156,8 @@ swSimPwr <- function (design, family, n, mu0, mu1, time.effect=0, H = NULL, sigm
   frac = (any(design$tx.effect.frac < 1))
   if ((!is.null(H)|design$nTxLev>1)&frac) stop("Do not specify time-varying treatment effect or multiple treatment effects with fractional treatment effects")
   #############
-  model = as.formula(paste0("response.var ~ ",
+  if (ar==1) {
+     model = as.formula(paste0("response.var ~ ",
                             ifelse(is.null(H),"ftx.var","ftimeontx.var"),
                             " + ftime.var",
                             ifelse(tau>0&(eta==0|(eta>0&rho==0))," + (1|fcluster.var)",""),
@@ -154,87 +165,166 @@ swSimPwr <- function (design, family, n, mu0, mu1, time.effect=0, H = NULL, sigm
                             ifelse(eta>0&rho!=0," + (itx.var | fcluster.var)",""),
                             ifelse(eta>0&rho==0," + (0 + itx.var | fcluster.var)",""),
                             ifelse(zeta>0,"+ (1|findivid.var)",""))) 
+  } else {
+    model = as.formula(paste0("response.var ~ ",
+                              ifelse(is.null(H),"ftx.var","ftimeontx.var"),
+                              " + ftime.var",
+                              ifelse(tau>0," + ar1(0 + ftime.var|fcluster.var)","")))
+#                              ,ifelse(gamma>0," + (1|fcluster.var:ftime.var)",""))) # this only contributes to diagonal of covariance matrix so no need to apply ar1 to this term
+  }
   #############
   power=NULL
   pval=est=se=df=matrix(NA,nsim,design$nTxLev)
-  nvcomp = (tau>0)+(eta>0)+(rho!=0)+(gamma>0)+(zeta>0)+as.numeric(distn == 'gaussian')
+  nvcomp = (tau>0)+(eta>0)+(rho!=0)+(gamma>0)+(zeta>0)+(ar!=1) + as.numeric(distn == 'gaussian')
   varcomp = matrix(NA,nsim,nvcomp)
   code=rep(0,nsim)
   msg=rep("",nsim)
-  for (i in 1:nsim){
-    if (counter) cat(i)
-    data = swSim(design=design,family=family,n=n,mu0=mu0,mu1=mu1,
-                 time.effect=time.effect, sigma=sigma, tau=tau,
-                 eta=eta, rho=rho, gamma=gamma, zeta=zeta, 
-                 time.lab = NULL, silent=silent,nocheck=TRUE)
-    #
-    data$ftime.var = as.factor(data$time.var)
-    data$fcluster.var = as.factor(data$cluster.var)
-    data$clustime = interaction(data$fcluster,data$ftime)
-    if (zeta>0) data$findivid.var = as.factor(data$individ.var)
-    if (frac) {data$ftx.var = data$tx.var} else {data$ftx.var = as.factor(data$tx.var)}
-    data$itx.var = as.integer(data$tx.var>0)
-    data$ftimeontx.var = as.factor(data$timeOnTx.var)
-    #
-    if (distn == 'gaussian'){
-      rslt = suppressMessages(lmerTest::lmer(model,data=data))
-      if (length(rslt@optinfo$conv$lme4$messages)>0)  msg[i] = paste0("[1] ",rslt@optinfo$conv$lme4$messages[1])
-      if (length(rslt@optinfo$conv$lme4$messages)>1) {
-        for (k in 2:length(rslt@optinfo$conv$lme4$messages)){
-          msg[i] = paste0(msg[i]," [",k,"] ",rslt@optinfo$conv$lme4$messages[k])
-        }}
-      if (is.null(H)){
-        for (j in 1:design$nTxLev){
-          if (frac) {varname="ftx.var"} else {varname=paste0("ftx.var",j)}
-          est[i,j] = summary(rslt)$coef[varname,"Estimate"]
-          se[i,j] = summary(rslt)$coef[varname,"Std. Error"]
-          df[i,j] = summary(rslt)$coef[varname,"df"]
-          pval[i,j] = summary(rslt)$coef[varname,"Pr(>|t|)"]
+  if (ar==1){
+    for (i in 1:nsim){
+      if (counter) cat(i)
+      data = swSim(design=design,family=family,n=n,mu0=mu0,mu1=mu1,
+                     time.effect=time.effect, sigma=sigma, tau=tau,
+                     eta=eta, rho=rho, gamma=gamma, zeta=zeta, 
+                     time.lab = NULL, silent=silent,nocheck=TRUE)
+      #
+      data$ftime.var = as.factor(data$time.var)
+      data$fcluster.var = as.factor(data$cluster.var)
+      data$clustime = interaction(data$fcluster,data$ftime)
+      if (zeta>0) data$findivid.var = as.factor(data$individ.var)
+      if (frac) {data$ftx.var = data$tx.var} else {data$ftx.var = as.factor(data$tx.var)}
+      data$itx.var = as.integer(data$tx.var>0)
+      data$ftimeontx.var = as.factor(data$timeOnTx.var)
+      #
+      if (distn == 'gaussian'){
+         rslt = suppressMessages(lmerTest::lmer(model,data=data))
+         if (length(rslt@optinfo$conv$lme4$messages)>0)  msg[i] = paste0("[1] ",rslt@optinfo$conv$lme4$messages[1])
+         if (length(rslt@optinfo$conv$lme4$messages)>1) {
+            for (k in 2:length(rslt@optinfo$conv$lme4$messages)){
+              msg[i] = paste0(msg[i]," [",k,"] ",rslt@optinfo$conv$lme4$messages[k])
+            }}
+         if (!is.null(rslt@optinfo$conv$lme4$code)) code[i]=rslt@optinfo$conv$lme4$code
+         if (is.null(H)){
+           for (j in 1:design$nTxLev){
+             if (frac) {varname="ftx.var"} else {varname=paste0("ftx.var",j)}
+              est[i,j] = summary(rslt)$coef[varname,"Estimate"]
+              se[i,j] = summary(rslt)$coef[varname,"Std. Error"]
+              df[i,j] = summary(rslt)$coef[varname,"df"]
+              pval[i,j] = summary(rslt)$coef[varname,"Pr(>|t|)"]
+           } 
+         } else {
+            contrast = lmerTest::contest(rslt,as.vector(Hext))
+            est[i,1] = sum(lme4::fixef(rslt)*Hext)
+            se[i,1] = as.numeric(sqrt(t(Hext)%*%vcov(rslt)%*%Hext))
+            df[i,1] = as.numeric(contrast["DenDF"])
+            pval[i,1] = as.numeric(contrast["Pr(>F)"])
         }
       } else {
-        contrast = lmerTest::contest(rslt,as.vector(Hext))
-        est[i,1] = sum(lme4::fixef(rslt)*Hext)
-        se[i,1] = as.numeric(sqrt(t(Hext)%*%vcov(rslt)%*%Hext))
-        df[i,1] = as.numeric(contrast["DenDF"])
-        pval[i,1] = as.numeric(contrast["Pr(>F)"])
-      }
-    } else {
-    if (distn =="binomial" | distn == "poisson") {
-       rslt = suppressMessages(lme4::glmer(model,data=data,family=family))
-       if (length(rslt@optinfo$conv$lme4$messages)>0)  msg[i] = paste0("[1] ",rslt@optinfo$conv$lme4$messages[1])
-       if (length(rslt@optinfo$conv$lme4$messages)>1) {
-         for (k in 2:length(rslt@optinfo$conv$lme4$messages)){
-           msg[i] = paste0(msg[i]," [",k,"] ",rslt@optinfo$conv$lme4$messages[k])
-         }}
-       if (is.null(H)){
-         for (j in 1:design$nTxLev){
-           if (frac) {varname="ftx.var"} else {varname=paste0("ftx.var",j)}
-           est[i,j] = summary(rslt)$coef[varname,"Estimate"]
-           se[i,j] = summary(rslt)$coef[varname,"Std. Error"]
-           pval[i,j] = summary(rslt)$coef[varname,"Pr(>|z|)"]
-         }
-       } else {
-         est[i,1] = sum(lme4::fixef(rslt)*Hext)
-         se[i,1] = as.numeric(sqrt(t(Hext)%*%vcov(rslt)%*%Hext))
-         z = est[i,1]/se[i,1]
-         pval[i,1] = 2*(1-pnorm(z))
-       }
-    } else {
-    stop("Distribution ",distn," not recognized")
-    }}
-    varcomp[i,] = as.data.frame(lme4::VarCorr(rslt))$sdcor
-    if (!is.null(rslt@optinfo$conv$lme4$code)) code[i]=rslt@optinfo$conv$lme4$code
+        if (distn =="binomial" | distn == "poisson") {
+            rslt = suppressMessages(lme4::glmer(model,data=data,family=family))
+            if (length(rslt@optinfo$conv$lme4$messages)>0)  msg[i] = paste0("[1] ",rslt@optinfo$conv$lme4$messages[1])
+            if (length(rslt@optinfo$conv$lme4$messages)>1) {
+              for (k in 2:length(rslt@optinfo$conv$lme4$messages)){
+                msg[i] = paste0(msg[i]," [",k,"] ",rslt@optinfo$conv$lme4$messages[k])
+              }}
+            if (!is.null(rslt@optinfo$conv$lme4$code)) code[i]=rslt@optinfo$conv$lme4$code
+            if (is.null(H)){
+              for (j in 1:design$nTxLev){
+                if (frac) {varname="ftx.var"} else {varname=paste0("ftx.var",j)}
+                est[i,j] = summary(rslt)$coef[varname,"Estimate"]
+                se[i,j] = summary(rslt)$coef[varname,"Std. Error"]
+                pval[i,j] = summary(rslt)$coef[varname,"Pr(>|z|)"]
+              }
+            } else {
+              est[i,1] = sum(lme4::fixef(rslt)*Hext)
+              se[i,1] = as.numeric(sqrt(t(Hext)%*%vcov(rslt)%*%Hext))
+              z = abs(est[i,1]/se[i,1])
+              pval[i,1] = 2*(1-pnorm(z))
+            }
+        } else {
+          stop("Distribution ",distn," not recognized")
+        }}
+        varcomp[i,] = as.data.frame(lme4::VarCorr(rslt))$sdcor
+    }
+    colnames(varcomp) = apply(as.data.frame(lme4::VarCorr(rslt))[,1:3],1,paste,collapse="-")
+    colnames(varcomp) = gsub("-NA","",colnames(varcomp))
+    colnames(varcomp) = sub("Residual","sigma",colnames(varcomp),fixed=TRUE)
+    colnames(varcomp) = sub("fcluster.var-(Intercept)-itx.var","rho",colnames(varcomp),fixed=TRUE)
+    colnames(varcomp) = sub("clustime-(Intercept)","gamma",colnames(varcomp),fixed=TRUE)
+    colnames(varcomp) = sub("clustime-(Intercept)","gamma",colnames(varcomp),fixed=TRUE)
+    colnames(varcomp) = sub("fcluster.var-itx.var","eta",colnames(varcomp),fixed=TRUE)
+    colnames(varcomp) = sub("fcluster.var.1-itx.var","eta",colnames(varcomp),fixed=TRUE)
+    colnames(varcomp) = sub("fcluster.var-(Intercept)","tau",colnames(varcomp),fixed=TRUE)
+    colnames(varcomp) = sub("fcluster.var.1-(Intercept)","tau",colnames(varcomp),fixed=TRUE)
+    colnames(varcomp) = sub("findivid.var-(Intercept)","zeta",colnames(varcomp),fixed=TRUE)
+    colnames(varcomp) = sub("findivid.var.1-(Intercept)","zeta",colnames(varcomp),fixed=TRUE)
+  } else {
+# ar != 1
+    for (i in 1:nsim){
+      if (counter) cat(i)
+      data = swSim2(design=design,family=family,n=n,mu0=mu0,mu1=mu1,
+                      time.effect=time.effect, sigma=sigma, tau=tau,
+                      eta=eta, rho=rho, ar=ar, gamma=gamma, zeta=zeta, 
+                      time.lab = NULL, silent=silent,nocheck=TRUE)
+      #
+      data$ftime.var = as.factor(data$time.var)
+      data$fcluster.var = as.factor(data$cluster.var)
+      data$clustime = interaction(data$fcluster,data$ftime)
+      if (zeta>0) data$findivid.var = as.factor(data$individ.var)
+      if (frac) {data$ftx.var = data$tx.var} else {data$ftx.var = as.factor(data$tx.var)}
+      data$itx.var = as.integer(data$tx.var>0)
+      data$ftimeontx.var = as.factor(data$timeOnTx.var)
+      #
+      if (distn == 'gaussian'){
+        rslt = suppressMessages(glmmTMB::glmmTMB(model,data=data)) 
+        msg[i] = rslt$fit$message
+        code[i] = rslt$fit$convergence
+        if (is.null(H)){
+          for (j in 1:design$nTxLev){
+            if (frac) {varname="ftx.var"} else {varname=paste0("ftx.var",j)}
+              est[i,j] = summary(rslt)$coef$cond[varname,"Estimate"]
+              se[i,j] = summary(rslt)$coef$cond[varname,"Std. Error"]
+              pval[i,j] = summary(rslt)$coef$cond[varname,"Pr(>|z|)"]            
+            }
+        } else {
+            est[i,1] = sum(glmmTMB::fixef(rslt)$cond*Hext)
+            se[i,1] = as.numeric(sqrt(t(Hext)%*%vcov(rslt)$cond%*%Hext))
+            z = abs(est[i,1]/se[i,1])
+            pval[i,1] = 2*(1-pnorm(z))
+        }
+      } else {
+        if (distn =="binomial" | distn == "poisson") {
+          rslt = suppressMessages(glmmTMB::glmmTMB(model,data=data,family=family))      
+          msg[i] = rslt$fit$message
+          code[i] = rslt$fit$convergence
+          if (is.null(H)){
+            for (j in 1:design$nTxLev){
+              if (frac) {varname="ftx.var"} else {varname=paste0("ftx.var",j)}
+                est[i,j] = summary(rslt)$coef$cond[varname,"Estimate"]
+                se[i,j] = summary(rslt)$coef$cond[varname,"Std. Error"]
+                pval[i,j] = summary(rslt)$coef$cond[varname,"Pr(>|z|)"]             
+            }
+          } else {
+            est[i,1] = sum(glmmTMB::fixef(rslt)$cond*Hext)
+            se[i,1] = as.numeric(sqrt(t(Hext)%*%vcov(rslt)$cond%*%Hext))
+            z = est[i,1]/se[i,1]
+            pval[i,1] = 2*(1-pnorm(z))
+          }
+        } else {
+          stop("Distribution ",distn," not recognized")
+        }}
+        vtemp = glmmTMB::VarCorr(rslt)$cond
+        varcomp[i,] = c((if (tau>0) {attr(vtemp$fcluster,"stddev")[1]} else {NULL}),
+                         attr(vtemp$fcluster,"correlation")[1,2],
+                         (if (distn == 'gaussian') {attr(vtemp,"sc")} else {NULL}))
+       
+    }  
+    cnames = c((if (tau>0) {"tau"} else {NULL}),
+               "ar",
+               (if (distn == 'gaussian') {"sigma"} else {NULL}))
+    varcomp = as.data.frame(varcomp)
+    names(varcomp)=cnames
   }
-  colnames(varcomp) = apply(as.data.frame(lme4::VarCorr(rslt))[,1:3],1,paste,collapse="-")
-  colnames(varcomp) = gsub("-NA","",colnames(varcomp))
-  colnames(varcomp) = sub("Residual","sigma",colnames(varcomp),fixed=TRUE)
-  colnames(varcomp) = sub("fcluster.var-(Intercept)-itx.var","rho",colnames(varcomp),fixed=TRUE)
-  colnames(varcomp) = sub("clustime-(Intercept)","gamma",colnames(varcomp),fixed=TRUE)
-  colnames(varcomp) = sub("clustime-(Intercept)","gamma",colnames(varcomp),fixed=TRUE)
-  colnames(varcomp) = sub("fcluster.var-itx.var","eta",colnames(varcomp),fixed=TRUE)
-  colnames(varcomp) = sub("fcluster.var.1-itx.var","eta",colnames(varcomp),fixed=TRUE)
-  colnames(varcomp) = sub("fcluster.var-(Intercept)","tau",colnames(varcomp),fixed=TRUE)
-  colnames(varcomp) = sub("fcluster.var.1-(Intercept)","tau",colnames(varcomp),fixed=TRUE)
+#############
   for (j in 1:design$nTxLev){
     power[j] = sum(pval[,j]<=alpha)/nsim
   }

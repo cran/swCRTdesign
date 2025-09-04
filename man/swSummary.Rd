@@ -9,7 +9,7 @@ Summary of Response/Outcome for Stepped Wedge Cluster Randomized Trial (SW CRT)
 }
 \usage{
 swSummary(response.var, tx.var, time.var, cluster.var, data, 
-type="mean", digits=16, fcn.Call=FALSE)
+type="mean", imputeNA=FALSE, digits=16, fcn.Call=FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -23,7 +23,7 @@ numeric(vector): Treatment (Predictor of Interest) variable. Typically, 0=placeb
 integer(vector): Time (points) variable, corresponding to the time points when data were collected during the SW CRT.
 }
   \item{cluster.var}{
-integer(vector): Cluster (identification) variable, corresponding to the cluster where an individual is from.
+integer(vector) or character(vector): Cluster (identification) variable, corresponding to the cluster where an individual is from.
 }
   \item{data}{
 An optional data frame containing (at least) the response, treatment (tx), time, and cluster variables.
@@ -31,6 +31,9 @@ An optional data frame containing (at least) the response, treatment (tx), time,
   \item{type}{
 character (scalar): Specify which summary measure is of interest from \code{"mean"}, \code{"sum"}, and \code{"n"}. (Note: The default returns "mean" as the summary measure of response. Note that all summary measures may not be scientifically relevant in every situation.)
 }
+  \item{imputeNA}{
+logical (scalar): If TRUE, then swSummary attempts to impute the intervention status in $swDsn and $swDsn.unique.clusters for cluster-periods with 0 non-missing observations (see Details). If FALSE, cluster-periods with 0 non-missing observations are assigned NA in $swDsn and $swDsn.unique.clusters. Note that changing imputeNA from FALSE to TRUE may also change the inferred number of unique waves ($n.waves and $swDsn.waves). Default is FALSE.
+  }
   \item{digits}{
 integer (scalar): Number of places right of the decimal. The default value is 16.
 }
@@ -39,7 +42,9 @@ logical: Only \code{TRUE} when calling \code{swSummary} from within \code{swPlot
 }
 }
 \details{
-Returns a list containing a matrix of dimension \code{length(unique(data$cluster))} by \code{length(} \code{unique(data$time))} that summarizes \code{data$response} for specified \code{type}. Either the mean, sum, or the number of non-missing \code{data$response} values may be requested using \code{type}. \code{dimnames} of the matrix correspond to the unique values of cluster and time. Note that the stepping pattern in the data may be obtained by specifying the treatment variable name as the response and \code{type = "mean"}.
+If \code{imputeNA} is set to TRUE then any NA in the design matrix is set to 1 (intervention) if the NA follows a 1 in the same cluster; is set to 0 (control) if the NA precedes a 0 in the same cluster; and is otherwise left as NA.
+
+swSummary returns a list containing a matrix of dimension \code{length(unique(data$cluster))} by \code{length(} \code{unique(data$time))} that summarizes \code{data$response} for specified \code{type}. Either the mean, sum, or the number of non-missing \code{data$response} values may be requested using \code{type}. \code{dimnames} of the matrix correspond to the unique values of cluster and time. Note that the stepping pattern in the data may be obtained by specifying the treatment variable name as the response and \code{type = "mean"}.
 }
 \value{
 numeric (list): \code{swSummary} returns a list containing the following
@@ -52,6 +57,9 @@ The SW design.
 	\item{swDsn.unique.clusters}{
 The unique clusters (i.e., rows) SW design.		
 }
+  \item{swDsn.waves}{
+Wave for each cluster.
+  }
 	\item{n.waves}{
 Number of waves. Note that this is usually, but not necessarily, the same as data$n.waves. See example 2.
 }

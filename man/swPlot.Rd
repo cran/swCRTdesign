@@ -8,8 +8,8 @@ Plot of Mean Response/Outcome for Stepped Wedge Cluster Randomized Trial (SW CRT
 \code{swPlot} returns plot of the mean response versus time based on waves and/or clusters from a SW CRT.
 }
 \usage{
-swPlot(response.var, tx.var, time.var, cluster.var, data, choose.mfrow=NULL,
-by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", choose.main=NULL,
+swPlot(response.var, tx.var, time.var, cluster.var, data, imputeNA = FALSE, 
+choose.mfrow=NULL, by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", choose.main=NULL,
 choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, choose.tx.lty = c(2,1),
 choose.ncol=2, xlim=NULL, ylim=NULL, choose.tx.pos="topright", choose.legend.pos="right")
 }
@@ -25,11 +25,14 @@ numeric(vector): Treatment (Predictor of Interest) variable. Typically, 0=contro
 integer(vector): Time (points) variable, corresponding to the time points when data were collected during the SW CRT.
 }
   \item{cluster.var}{
-integer(vector): Cluster (identification) variable, corresponding to the cluster where an observation is from.
+integer(vector) or character(vector): Cluster (identification) variable, corresponding to the cluster where an observation is from.
 }
   \item{data}{
 An optional data frame containing (at least) the response, treatment (tx), time, and cluster variables.
 }
+  \item{imputeNA}{
+logical (scalar): If TRUE, then swPlot (via a call to swSummary) attempts to impute the intervention status for cluster-periods with 0 non-missing observations (see Details). If FALSE, cluster-periods with 0 non-missing observations are assigned NA. Note that changing imputeNA from FALSE to TRUE may also change the inferred number of unique waves. Default is FALSE.
+  }
   \item{choose.mfrow}{
 numeric (vector): Choose \code{mfrow} for plot. If \code{NULL}, \code{mfrow} is automatically assigned based on the plot created. The default is \code{NULL}.
 }
@@ -67,10 +70,12 @@ Vectors of length 2 giving x and y axis limits on plot. If NULL, minimum and max
 Choose where to place treatment colors "legend". Standard \code{legend()} positions apply. The default is "topright"; if this covers points, it should be changed.
 }
   \item{choose.legend.pos}{
-Choose where to place the non-treatment legend. Standard \code{legend()} positions apply. The default is "right"; if this covers points, it should be changed.  If "mouseclick", user specifies location with mouse/trackpad by clicking on the plot that appears. Specify \code{NULL} to remove legend.
+Choose where to place the non-treatment legend. Standard \code{legend()} positions apply. The default is "right"; if this covers points, it should be changed.  If "mouseclick", user specifies location with mouse/trackpad by clicking on the plot that appears. Specify \code{NULL} to remove legend. When by.wave=FALSE, no legend is plotted
 }
 }
 \details{
+If \code{imputeNA} is set to TRUE then any NA in the design matrix is set to 1 (intervention) if the NA follows a 1 in the same cluster; is set to 0 (control) if the NA precedes a 0 in the same cluster; and is otherwise left as NA.
+
 Returns a plot of the mean response versus time with a combination of by wave (\code{TRUE} / \code{FALSE}) and combined plot (\code{TRUE} / \code{FALSE}) from a SW CRT. See discussion of number of waves in help file for swSummary.
 }
 %\value{

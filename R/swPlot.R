@@ -1,15 +1,16 @@
-swPlot <- function(response.var, tx.var, time.var, cluster.var, data, 
+swPlot <- function(response.var, tx.var, time.var, cluster.var, data, imputeNA = FALSE,
                    choose.mfrow=NULL, by.wave=TRUE, combined.plot=TRUE, choose.xlab="Time", 
                    choose.main=NULL, choose.pch=NULL, choose.cex=1, choose.tx.col=NULL, 
                    choose.tx.lty = c(2,1), choose.ncol=2, xlim=NULL, ylim=NULL,choose.tx.pos="topright", choose.legend.pos="right")
 {
-#Last update: Jim Hughes 5/1/2023, v. 4.0
+#Last update: Jim Hughes 4/4/2025, v. 4.1
 ##########
 #Use swSummary to process data
 ##########
 #Future extension: some warning messages making sure user inputs are consistent with expectations
-swSummaryFcnCall <- swSummary(response.var=substitute(response.var), tx.var=substitute(tx.var), time.var=substitute(time.var), cluster.var=substitute(cluster.var), data=data, type="mean", digits=16, fcn.Call=TRUE)
+swSummaryFcnCall <- swSummary(response.var=substitute(response.var), tx.var=substitute(tx.var), time.var=substitute(time.var), cluster.var=substitute(cluster.var), data=data, imputeNA=substitute(imputeNA), type="mean", digits=16, fcn.Call=TRUE)
 swDsnTmp <- swSummaryFcnCall$swDsn
+ClusterNames <- sub("\\)","",sub("\\(cluster ","",row.names(swDsnTmp)))
 ##
 ##########
 #Set up colors for plots
@@ -200,7 +201,8 @@ else if( by.wave == FALSE ){
 			swDsnTmp.j[ !is.na(swDsnTmp.j) ] <- 1
 			swPlotTx.j.Cluster <- cbind(swDsnTmp.j, swDsnTmp)[,1:dim(swDsnTmp.j)[2]] * swMeanResponse.Cluster
 			for( i in 1:dim( swDsnTmp )[1] ){
-				text( swSummaryFcnCall$time.at.each.wave, swPlotTx.j.Cluster[i,], labels=as.character(i), cex=choose.cex, col=uniqueTxColors[j] )
+#			  text( swSummaryFcnCall$time.at.each.wave, swPlotTx.j.Cluster[i,], labels=as.character(i), cex=choose.cex, col=uniqueTxColors[j] )
+			  text( swSummaryFcnCall$time.at.each.wave, swPlotTx.j.Cluster[i,], labels=ClusterNames[i], cex=choose.cex, col=uniqueTxColors[j] )
 			  #If only 2 unique treatments (j=2), plot control lines as dash (lty=2) and treatment lines as solid (lty=1). First plot all lines as dashed (lty=2) [already done above]. Then later draw solid lines for treatment times (lty=1) [here].
 			  if( j==2 ){
 			    lines(swSummaryFcnCall$time.at.each.wave, swPlotTx.j.Cluster[i, ], lty = 1, col = "white")
@@ -208,16 +210,17 @@ else if( by.wave == FALSE ){
 			  }
 			  }
 		}
+# No legend if by.wave=FALSE
 		#Make legend
-		custom.legend.vals <- cbind( cumsum(swSummaryFcnCall$clusters) - swSummaryFcnCall$clusters + 1, cumsum(swSummaryFcnCall$clusters), 1:swSummaryFcnCall$n.waves )
-		custom.legend <- apply( custom.legend.vals, 1, function(z){ paste(z[1], ":", z[2], " (", z[3], ")", sep="") })
+#		custom.legend.vals <- cbind( cumsum(swSummaryFcnCall$clusters) - swSummaryFcnCall$clusters + 1, cumsum(swSummaryFcnCall$clusters), 1:swSummaryFcnCall$n.waves )
+#		custom.legend <- apply( custom.legend.vals, 1, function(z){ paste(z[1], ":", z[2], " (", z[3], ")", sep="") })
 		legend( choose.tx.pos, c("Tx:", uniqueTx), text.col=c("black", uniqueTxColors), ncol=(1 + length(uniqueTx)), x.intersp=0.01, xjust=1, y.intersp=0.5, cex=0.9)
-		if(!is.null(choose.legend.pos) && choose.legend.pos == "mouseclick"){
-		  cat("Click on plot to add a legend\n")
-		  #utils::flush.console()
-		  legend( locator(1), legend=custom.legend, col="black", ncol=choose.ncol, title="Cluster (Wave)" )
-		}
-		else if(!is.null(choose.legend.pos)) legend( choose.legend.pos, legend=custom.legend, col="black", ncol=choose.ncol, title="Cluster (Wave)" )
+#		if(!is.null(choose.legend.pos) && choose.legend.pos == "mouseclick"){
+#		  cat("Click on plot to add a legend\n")
+#		  #utils::flush.console()
+#		  legend( locator(1), legend=custom.legend, col="black", ncol=choose.ncol, title="Cluster (Wave)" )
+#		}
+#		else if(!is.null(choose.legend.pos)) legend( choose.legend.pos, legend=custom.legend, col="black", ncol=choose.ncol, title="Cluster (Wave)" )
 	}
 	###*********************************************
 	###
@@ -236,22 +239,26 @@ else if( by.wave == FALSE ){
 			else if( swSummaryFcnCall$n.waves>=10 | swSummaryFcnCall$n.waves<=12 ){ choose.mfrow <- c(3,4) }
 		}
 		par( mfrow=choose.mfrow )
-		custom.main.vals <- cbind( cumsum(swSummaryFcnCall$clusters) - swSummaryFcnCall$clusters + 1, cumsum(swSummaryFcnCall$clusters), 1:swSummaryFcnCall$n.waves )
+#		custom.main.vals <- cbind( cumsum(swSummaryFcnCall$clusters) - swSummaryFcnCall$clusters + 1, cumsum(swSummaryFcnCall$clusters), 1:swSummaryFcnCall$n.waves )
+		custom.main.vals <- split(1:swSummaryFcnCall$n.clusters,swSummaryFcnCall$swDsn.waves)
 		for( plot.indx in 1:swSummaryFcnCall$n.waves ){
-			if( custom.main.vals[plot.indx, 2] - custom.main.vals[plot.indx, 1] < 2 ) {
-				choose.main <- paste( "Wave ", custom.main.vals[plot.indx, 3], ", Cluster ", custom.main.vals[plot.indx, 1], "-", custom.main.vals[plot.indx, 2], sep="" )
-			}else { choose.main <- paste( "Wave ", custom.main.vals[plot.indx, 3], ", Clusters ", custom.main.vals[plot.indx, 1], "-", custom.main.vals[plot.indx, 2], sep="" ) }
+#			if( custom.main.vals[plot.indx, 2] - custom.main.vals[plot.indx, 1] < 2 ) {
+#				choose.main <- paste( "Wave ", custom.main.vals[plot.indx, 3], ", Cluster ", custom.main.vals[plot.indx, 1], "-", custom.main.vals[plot.indx, 2], sep="" )
+#			}else { choose.main <- paste( "Wave ", custom.main.vals[plot.indx, 3], ", Clusters ", custom.main.vals[plot.indx, 1], "-", custom.main.vals[plot.indx, 2], sep="" ) }
+		  choose.main <- paste( "Wave ", plot.indx)
 		  #Set up empty plot
 			plot(0,0, type="n", xlim=c(sw.xMin.Cluster, sw.xMax.Cluster), ylim=c(sw.yMin.Cluster - (sw.yMin.Cluster/10), sw.yMax.Cluster + (sw.yMin.Cluster/10)), xaxt="n", xlab=choose.xlab, ylab="Mean Response", main=choose.main)
 			axis(1, at=c(swSummaryFcnCall$time.at.each.wave), labels=c(swSummaryFcnCall$time.at.each.wave))
 			#If only 2 unique treatments, plot control lines as dash (lty=2) and treatment lines as solid (lty=1). First plot all lines as dashed (lty=2) [here]. Then later draw solid lines for treatment times (lty=1) [after].
 			#If more than 2 unique treatments, plot all lines as solid (lty=1)
 			if( length(uniqueTx) == 2 ){
-			  for (i in custom.main.vals[plot.indx, 1]:custom.main.vals[plot.indx, 2]) {
+#			  for (i in custom.main.vals[plot.indx, 1]:custom.main.vals[plot.indx, 2]) {
+			  for (i in custom.main.vals[[plot.indx]]) {
 			    lines(swSummaryFcnCall$time.at.each.wave, swMeanResponse.Cluster[i, ], lty = choose.tx.lty[1], col = "grey")
 			  }
 			}else if( length(uniqueTx) > 2 ){
-			  for (i in custom.main.vals[plot.indx, 1]:custom.main.vals[plot.indx, 2]) {
+#			  for (i in custom.main.vals[plot.indx, 1]:custom.main.vals[plot.indx, 2]) {
+			  for (i in custom.main.vals[[plot.indx]]) {
 			    lines(swSummaryFcnCall$time.at.each.wave, swMeanResponse.Cluster[i, ], lty = 1, col = "grey")
 			  }
 			}
@@ -261,8 +268,9 @@ else if( by.wave == FALSE ){
 				swDsnTmp.j[ (swDsnTmp.j < uniqueTx[j] - 1e-8) | (swDsnTmp > uniqueTx[j] + 1e-8) ] <- NA
 				swDsnTmp.j[ !is.na(swDsnTmp.j) ] <- 1
 				swPlotTx.j.Cluster <- cbind(swDsnTmp.j, swDsnTmp)[,1:dim(swDsnTmp.j)[2]] * swMeanResponse.Cluster
-				for( i in custom.main.vals[plot.indx, 1]:custom.main.vals[plot.indx, 2] ) {
-					text( swSummaryFcnCall$time.at.each.wave, swPlotTx.j.Cluster[i,], labels=as.character(i), cex=choose.cex, col=uniqueTxColors[j] )
+#				for( i in custom.main.vals[plot.indx, 1]:custom.main.vals[plot.indx, 2] ) {
+				for (i in custom.main.vals[[plot.indx]]) {
+				  text( swSummaryFcnCall$time.at.each.wave, swPlotTx.j.Cluster[i,], labels=ClusterNames[i], cex=choose.cex, col=uniqueTxColors[j] )
 				  #If only 2 unique treatments (j=2), plot control lines as dash (lty=2) and treatment lines as solid (lty=1). First plot all lines as dashed (lty=2) [already done above]. Then later draw solid lines for treatment times (lty=1) [here].
 				  if( j==2 ){
 				    lines(swSummaryFcnCall$time.at.each.wave, swPlotTx.j.Cluster[i, ], lty = 1, col = "white")

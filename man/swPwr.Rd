@@ -9,7 +9,7 @@ Power of Stepped Wedge Cluster Randomized Trial (SW CRT)
 }
 \usage{
 swPwr(design, distn, n, mu0, mu1, H=NULL, sigma, tau=0, eta=0, rho=0, gamma=0, zeta=0,
-icc=0, cac=1, iac=0, alpha=0.05, retDATA=FALSE, silent=FALSE)
+icc=0, cac=1, iac=0, ar=1, alpha=0.05, retDATA=FALSE, silent=FALSE)
 %
 }
 %- maybe also 'usage' for other objects documented here.
@@ -21,7 +21,7 @@ list: A stepped wedge design object, typically from \code{swDsn}, that includes 
 character: Distribution assumed (\code{gaussian} or \code{binomial}).  Currently, 'Binomial' implies Bernoulli.
 }
   \item{n}{
-integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points that are not NA in design$swDsn; (vector) for each cluster at all time points that are not NA in design$swDsn; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time.  \code{n} can also be used to specify a design with transition periods (a transition period is a period, typically, immediately after treatment is introduced were no data are collected).  Simply define \code{n} as a matrix with a sample size of 0 during every transition period. This is equivalent to putting an NA in design$swDsn.
+integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points that are not NA in design$swDsn; (vector) for each cluster at all time points that are not NA in design$swDsn; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time.  \code{n} can also be used to specify a design with transition periods (a transition period is a period, typically, immediately after treatment is introduced were no data are collected).  Simply define \code{n} as a matrix with a sample size of 0 during every transition period. This is equivalent to putting an NA in the corresponding cluster-period in design$swDsn.
 }
   \item{mu0}{
 numeric (scalar): Mean outcome in the control group. See also documentation for H, below.
@@ -30,7 +30,7 @@ numeric (scalar): Mean outcome in the control group. See also documentation for 
 numeric (scalar or vector): Mean outcome in the treatment group(s). The treatment effect is the difference in means \eqn{\theta = \mu_1 - \mu_0}. If \code{tx.effect.frac} is specified in the call to \code{swDsn} then the assumed treatment effect at exposure time k is \code{tx.effect.frac}[k]*\eqn{\theta}. For an IT model with multiple treatment levels the length of \code{mu1} should be equal to the number of treatment levels. See also documentation for H, below.
 }
   \item{H}{
-numeric (vector): If NULL, then swPwr assumes an immediate, constant treatment effect (IT) model. If not NULL, then an exposure time indicator (ETI) model is assumed and H should be a vector as long as the longest exposure time (in a classic stepped wedge design, the longest exposure time is the number of time periods minus one). H specifies the desired linear combination of exposure time treatment effects. For example, in a stepped wedge trial with 5 time periods and four exposure times, H = rep(.25,4) gives the average treatment effect over the four exposure times; H = c(0,0,.5,.5) ignores the first two periods after the intervention is introduced and averages the remaining periods. Typically, the sum of H is 1.0; if not, it is renormalized to sum to 1.0. H can only be specified when there is a single intervention level (i.e. design$swDsn includes only NA,0,1; see cautions in help for \code{swDsn} about including NA periods when H is used). mu0 and mu1 give expected values of the linear combination of exposure time treatment effects under the null and alternative hypotheses, respectively. Do not use an ETI model (non-null \code{H}) if you specified a fractional treatment effect in \code{swDsn}.
+numeric (vector): If NULL, then swPwr assumes an immediate, constant treatment effect (IT) model. If not NULL, then an exposure time indicator (ETI) model is assumed and H should be a vector as long as the longest exposure time (in a classic stepped wedge design, the longest exposure time is the number of time periods minus one). H specifies the desired linear combination of exposure time treatment effects. For example, in a stepped wedge trial with 5 time periods and four exposure times, H = rep(.25,4) gives the average treatment effect over the four exposure times; H = c(0,0,.5,.5) ignores the first two periods after the intervention is introduced and averages the remaining periods. Typically, the sum of H is 1.0; if not, it is renormalized to sum to 1.0. H can only be specified when there is a single intervention type (i.e. design$swDsn includes only NA,0,1; see cautions in help for \code{swDsn} about including NA periods when H is used). mu0 and mu1 give expected values of the linear combination of exposure time treatment effects under the null and alternative hypotheses, respectively. Do not use an ETI model (non-null \code{H}) if you specified a fractional treatment effect in \code{swDsn}. See the details section for additional notes regarding incomplete designs.
 }
   \item{sigma}{
 numeric (scalar): Standard deviation when assuming Gaussian distribution (\code{distn=gaussian}). For binomial distribution \eqn{\sigma^2} is automatically set to \eqn{\bar{\mu}(1-\bar{\mu})} where \eqn{\bar{\mu} = (\mu_1 + \mu_0)/2}
@@ -39,10 +39,10 @@ numeric (scalar): Standard deviation when assuming Gaussian distribution (\code{
 numeric (scalar): Standard deviation of random intercepts.
 }
   \item{eta}{
-numeric (scalar): Standard deviation of random treatment effects.
+numeric (scalar or list): Standard deviation of random treatment effect(s). If there is only one treatment group or if all the treatment groups have identical standard deviations for their random treatment effects, then eta can be specified as a scalar. If there are multiple treatment effects then eta can be specified as a list with two components: eta$eta is a vector of standard deviations of the random treatment effects (must be of length design$nTxLev); eta$corr is the correlation matrix of the random treatment effects (must be square and symmetrical with dimension design$nTxLev). If there are, say, two treatment groups then specifying eta = .005 is equivalent to specifying eta = list(eta=c(.005,.005),corr=matrix(1,2,2)).
 }
   \item{rho}{
-numeric (scalar): Correlation between random intercepts and random treatment effects.
+numeric (scalar or vector): Correlation between random intercepts and random treatment effects. If there are multiple treatment effects and eta has been specified as a list, then rho should have the same length as eta$eta.
 }
   \item{gamma}{
 numeric (scalar): Standard deviation of random time effects.
@@ -59,6 +59,9 @@ numeric (scalar): Cluster auto-correlation.  Can be used with ICC instead of tau
   \item{iac}{
 numeric (scalar): Individual auto-correlation for closed cohort sampling.  Can be used with ICC and CAC instead of tau, eta, rho, gamma, and zeta; see details. Default is 0 which implies cross-sectional sampling. Values greater than 0 imply closed cohort sampling.
 }
+ \item{ar}{
+numeric (scalar): Autocorrelation for exponential decay structure between periods within a cluster as described in Kasza et al (2019a;2019b). Available for cross-sectional sampling only (i.e. zeta=0 and iac=0). Default is ar=1 (no exponential decay). See details.
+ }
   \item{alpha}{
 numeric (scalar): Two-sided statistical significance level.
 }
@@ -70,15 +73,31 @@ logical: if TRUE, hides most warning messages.  Default value is \code{FALSE}.
 }
 }
 \details{
-%%We assume the outcome variable of interest can be modeled using (possibly correlated) random intercepts and random treatment effects
-%%\deqn{ Y_{ij} = \mu_0 + \beta_j + \theta X_{ij} + a_i + r_i X_{ij} + e_{ij} }
-%%where
-%%\deqn{ a_i \sim N(0, \tau^2) }
-%%\deqn{ r_i \sim N(0, \eta^2) }
-%%\deqn{ Cov(a_i, r_i) = \rho \tau \eta }
-%%\deqn{ e_{ij} \sim N(0, \sigma^2 / K) }
-%%for \eqn{K} observations in cluster \eqn{i=1,\ldots,I}  and  at time \eqn{j=1,\ldots,J}.
-%%
+If ar=1, we assume the outcome variable of interest can be modeled using random effects
+\deqn{ Y_{ijk} = \mu_0 + \beta_j + \theta X_{ij} + a_i + b_{ij} + r_i X_{ij} + c_{ik} + e_{ijk} }
+where
+\deqn{ a_i \sim N(0, \tau^2) }
+\deqn{ b_{ij} \sim N(0, \gamma^2) }
+\deqn{ r_i \sim N(0, \eta^2) }
+\deqn{ Cov(a_i, r_i) = \rho \tau \eta }
+\deqn{ c_{ik} \sim N(0, \zeta^2) }
+\deqn{ e_{ijk} \sim N(0, \sigma^2) }
+for \eqn{K} observations in cluster \eqn{i=1,\ldots,I}  and  at time \eqn{j=1,\ldots,J}.
+
+An exponentially decaying autocorrelation structure is specified by setting ar<1. The exponential decay only applies to the cluster and cluster*time random effects (Kasza et al., 2019) and is only available for cross-sectional sampling (i.e. \code{zeta} = \code{iac} = 0). Let \eqn{Y_i} represent the vector of cluster-period means for cluster \eqn{i}. Then the covariance of \eqn{Y_i} is
+\deqn{Var(Y_i) = G*R + T }
+where \eqn{*} denotes element by element multiplication and \eqn{G}, \eqn{R} and \eqn{T} are \eqn{J x J} matricies with
+
+\deqn{
+\begin{array}{rcl}
+G & = & \tau^2 + diag(\gamma^2) + diag(\sigma^2 / K) \\
+T_{ij} & = & \eta^2 \mbox{ \hspace{.2in} for i=j=J} \\
+       & = & \rho \tau \eta \mbox{ \hspace{.1in} for i=1...J-1, j=J and i=J, j=1...J-1} \\
+       & = & 0 \mbox{ \hspace{.24in} elsewhere} \\
+R      & = & \mbox{a toeplitz matrix with elements equal to } \code{ar}^m \mbox{ where m = 0...J-1 is the distance from the main diagonal}
+\end{array}
+}
+
 The two-sided statistical power of treatment effect \eqn{(\theta = \mu_1 - \mu_0)} is
 \deqn{ Pwr(\theta) = \Phi( Z - z_{1 - \alpha /2} ) + \Phi( -Z - z_{1 - \alpha /2} ) }
 where
@@ -92,6 +111,8 @@ When eta (and rho) are 0, instead of using tau, eta, rho, gamma and zeta, the ic
 \deqn{ CAC = \frac{\tau^2}{\tau^2+\gamma^2} }
 \deqn{ IAC = \frac{\zeta^2}{\zeta^2+\sigma^2}}
 Choose one parameterization or the other, do not mix parameterizations.
+
+Incomplete designs (e.g. staircase) can be specified by using the \code{swDsn} function with the \code{swBlk} argument to specify the incomplete design or by specifying a complete design with \code{swDsn} and using the \code{n} argument of swPwr to specify a matrix with 0 in the missing cluster-periods. Note that if the second approach is used then H must be either a scalar or a vector as long as the longest lag in the complete design. See the examples below.
 }
 \value{
 numeric (vector): \code{swPwr} returns the power of treatment effect(s), where the variance of treatment effect is computed by WLS.  %%%% (if \eqn{\eta = 0}, then power computed using closed-form formula for variance is also given) if \code{retDATA = FALSE}.
@@ -134,15 +155,9 @@ numeric (scalar): Standard deviation of random time effects.
   \item{zeta}{
 numeric (scalar): Standard deviation of individual random effects for closed cohort sampling.
   }
-  \item{icc}{
-numeric (scalar): Within-period intra-cluster correlation.  Can be used with CAC and IAC instead of tau, eta, rho, gamma and zeta; see details.
-  }
-  \item{cac}{
-numeric (scalar): Cluster auto-correlation.  Can be used with ICC and IAC instead of tau, eta, rho, gamma and zeta; see details.
-  }
-  \item{iac}{
-numeric (scalar): Individual auto-correlation for closed cohort sampling.  Can be used with ICC and CAC instead of tau, eta, rho, gamma and zeta; see details.
-  }
+   \item{ar}{
+numeric (scalar): Autocorrelation for exponential decay structure between periods within a cluster as described in Kasza et al (2019). Available for cross-sectional sampling only (i.e. zeta=0 and iac=0). See details.
+ }
 	\item{alpha}{
 		numeric (scalar): Statistical significance level.
 	}
@@ -179,6 +194,10 @@ numeric (scalar): Individual auto-correlation for closed cohort sampling.  Can b
 \references{
 
 Hussey MA, Hughes JP. Design and analysis of stepped wedge cluster randomized trials. Contemporary Clinical Trials 2007;28:182-191.
+
+Kasza J, Hemming K, Hooper R, Matthews JNS, Forbes AB. Impact of non-uniform correlation on sample size and power in multiple-period cluster randomized trials. Statistical Methods in Medical Research 2019a; 28: 703-716.
+
+Kasza J, Taljaard M, Forbes AB. Information content of stepped-wedge designs when treatment effect heterogeneity and/or implementation periods are present. Statistics in Medicine 2019b; 38:4686-4701.
 
 Kenny A, Voldal E, Xia F, Heagerty PJ, Hughes JP. Analysis of stepped wedge cluster randomized trials in the presence of a time-varying treatment effect. Statistics in Medicine, in press, 2022.
 
@@ -272,6 +291,29 @@ stdy <- swDsn(c(6,6,6,6),swBlk=matrix(c(0,1,2,2,2,2,
 swPwr.Ex10 <-swPwr(stdy, distn="binomial",n=120, mu0=0.05, mu1=c(0.035,0.03),
       tau=0.01, eta=0, rho=0, gamma=0, alpha=0.05, retDATA=TRUE, silent=TRUE)
 swPwr.Ex10
+
+# EXample 11 Compare to Kasza et al (2019) figure 4, lower left
+swPwr(swDsn(c(1,1,1,1,1,1,1)),distn="gaussian",n=50,mu0=0,mu1=0.2,
+            tau=sqrt(.035),sigma=sqrt(1-.035),ar=.95,alpha=0.05,retDATA=FALSE,silent=TRUE)
+
+# Example 12 Incomplete design
+# These all give the same power
+design12 = swDsn(c(4,4,4),swBlk=matrix(c(0,1,1,NA,NA,NA,0,1,1,NA,NA,NA,0,1,1),3,5,byrow=TRUE))
+swPwr(design12,distn="gaussian",n=10,mu0=0,mu1=.5,H=c(.5,.5),sigma=1,icc=.01,silent=TRUE)
+swPwr(design12,distn="gaussian",n=10,mu0=0,mu1=.5,H=1,sigma=1,icc=.01,silent=TRUE)
+# H is automatically expanded and normalized
+#
+design12a = swDsn(c(4,4,4),extra.trt.time=1)
+nmat12a=matrix(c(rep(c(10,10,10,0,0),4),rep(c(0,10,10,10,0),4),rep(c(0,0,10,10,10),4)),12,5,
+               byrow=TRUE)
+swPwr(design12a,distn="gaussian",n=nmat12a,mu0=0,mu1=.5,H=1,sigma=1,icc=.01,silent=TRUE) #OK
+swPwr(design12a,distn="gaussian",n=nmat12a,mu0=0,mu1=.5,H=c(1,1,0,0),sigma=1,icc=.01,
+      silent=TRUE) #OK
+# The following generates an error; since design12a is a complete design with maximum lag 4,
+# H must be a scalar or vector of length 4
+# swPwr(design12a,distn="gaussian",n=nmat12a,mu0=0,mu1=.5,H=c(1,1),sigma=1,icc=.01,silent=TRUE)
+
+
 
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the

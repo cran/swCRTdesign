@@ -10,7 +10,7 @@ The outcome is assumed to come from a model with fixed treatment effect(s) (usin
 }
 \usage{
 swGlmPwr(design, distn, n, fixed.intercept, fixed.treatment.effect, 
-fixed.time.effect, H = NULL, tau = 0, eta = 0, rho = 0, gamma = 0, zeta = 0, 
+fixed.time.effect, H = NULL, tau = 0, eta = 0, rho = 0, gamma = 0, zeta = 0, ar=1,
 alpha=0.05, retDATA = FALSE, silent=FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -22,7 +22,7 @@ list: A stepped wedge design object, typically from \code{swDsn}, that includes 
 character: Distribution assumed (binomial or Poisson). "binomial" implies binomial outcomes with logit link and "poisson" implies Poisson outcome with log link. ***NOTE: It is the users responsibility to make sure specified parameters (fixed.intercept, fixed.treatment effect, fixed.time effect, tau, eta, rho, gamma, zeta) are ALL on SAME scale as specified link function; see example.***
 }
 \item{n}{
-integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points that are not NA in design$swDsn; (vector) for each cluster at all time points that are not NA in design$swDsn; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time. \code{n} can also be used to specify a design with transition periods (a transition period is a period, typically, immediately after treatment is introduced were no data are collected).  Simply define \code{n} as a matrix with a sample size of 0 during every transition period. This is equivalent to putting an NA in design$swDsn.
+integer (scalar, vector, or matrix): Number of observations: (scalar) for all clusters and all time points that are not NA in design$swDsn; (vector) for each cluster at all time points that are not NA in design$swDsn; and (matrix) for each cluster at each time point, where rows correspond to clusters and columns correspond to time. \code{n} can also be used to specify a design with transition periods (a transition period is a period, typically, immediately after treatment is introduced were no data are collected).  Simply define \code{n} as a matrix with a sample size of 0 during every transition period. This is equivalent to putting an NA in the corresponding cluster=period in design$swDsn.
 }
 \item{fixed.intercept}{
 numeric (scalar): Intercept for the fixed effect on canonical scales (logit for binomial outcomes and log for Poisson outcomes). It is the mean outcome under the control condition in the first time point transformed to the canonical scales.
@@ -30,16 +30,16 @@ numeric (scalar): Intercept for the fixed effect on canonical scales (logit for 
 \item{fixed.treatment.effect}{
 numeric (scalar, vector): Gives the coefficients for the treatment effect on the canonical scale (logit for binomial outcomes and log for Poisson outcomes). 
 
-If H = NULL then an IT model is assumed and \code{fixed.treatment.effect} gives the coefficient(s) for the \code{design$nTxLev} treatment effect(s). If \code{tx.effect.frac} is specified in \code{design} then the assumed treatment effect at exposure time k is \code{tx.effect.frac[k]*fixed.treatment.effect}. 
+If \code{H} = NULL then an IT model is assumed and \code{fixed.treatment.effect} gives the coefficient(s) for the \code{design$nTxLev} treatment effect(s). If \code{tx.effect.frac} is specified in \code{design} then the assumed treatment effect at exposure time k is \code{tx.effect.frac[k]*fixed.treatment.effect}. 
 
-If H is non-NULL then an ETI model is assumed and fixed.treatment.effect is a vector as long as the longest treatment effect exposure time; in a classic stepped wedge design, the longest exposure time is the number of time periods minus one. 
+If \code{H} is non-NULL then an ETI model is assumed and \code{fixed.treatment.effect} is a vector as long as the longest treatment effect exposure time; in a classic stepped wedge design, the longest exposure time is the number of time periods minus one. Note that the length of \code{fixed.treatment.effect} must agree with the longest exposure time by design, regardless of the the sample size (\code{n})
 }
 \item{fixed.time.effect}{
 numeric(scalar, vector): Coefficients for the time (as dummy variables) in the fixed effect model on canonical scales (logit for binomial outcomes and log for Poisson outcomes). The first time point is always used as reference.
 Specify a common time effect for all time points after the first (scalar) or differnt time effects for each time point after the first (vector of length (total time-1)).
 }
   \item{H}{
-numeric (vector): If NULL, then swGlmPwr assumes an immediate, constant treatment effect (IT) model. If not NULL, then an exposure time indicator (ETI) model is assumed and H should be a vector as long as the longest exposure time (typically, number of time periods minus one). H specifies the desired linear combination of fixed.treatment.effect. For example, in a stepped wedge trial with 5 time periods and four exposure times, H = rep(.25,4) gives the average treatment effect over the four exposure times; H = c(0,0,.5,.5) ignores the first two periods after the intervention is introduced and averages the remaining periods. Typically, the sum of H is 1.0; if not, it is renormalized to sum to 1.0. H can only be specified when there is a single intervention level (i.e. design$swDsn includes only NA,0,1; see cautions in help for \code{swDsn} about including NA periods when H is used). Do not use an ETI model (non-null \code{H}) if you specified a fractional treatment effect in \code{swDsn}.
+numeric (vector): If NULL, then swGlmPwr assumes an immediate, constant treatment effect (IT) model. If not NULL, then an exposure time indicator (ETI) model is assumed and H should be a vector as long as the longest exposure time (in a classic SW design, the longest exposure period is the number of time periods minus one). H specifies the desired linear combination of fixed.treatment.effect. For example, in a stepped wedge trial with 5 time periods and four exposure times, H = rep(.25,4) gives the average treatment effect over the four exposure times; H = c(0,0,.5,.5) ignores the first two periods after the intervention is introduced and averages the remaining periods. Typically, the sum of H is 1.0; if not, it is renormalized to sum to 1.0. H can only be specified when there is a single intervention type (i.e. design$swDsn includes only NA,0,1; see cautions in help for \code{swDsn} about including NA periods when H is used). Do not use an ETI model (non-null \code{H}) if you specified a fractional treatment effect in \code{swDsn}. See the details section for additional notes regarding incomplete designs.
 }
 \item{tau}{
 numeric (scalar): Standard deviation of random intercepts on canonical scales (logit for binomial outcomes and log for Poisson outcomes).
@@ -56,6 +56,9 @@ numeric (scalar): Standard deviation of random time effects on canonical scales 
 \item{zeta}{
 numeric (scalar): Standard deviation of individual effects for closed cohort sampling on canonical scales (logit for binomial outcomes and log for Poisson outcomes). Default is 0 which implies cross-sectional sampling. Values greater than 0 imply closed cohort sampling.
 }
+ \item{ar}{
+numeric (scalar): Autocorrelation for exponential decay structure between periods within a cluster as described in Kasza et al (2019a;2019b). Available for cross-sectional sampling only (i.e. zeta=0 and iac=0). Default is ar=1 (no exponential decay). See details.
+ }
 \item{alpha}{
 numeric (scalar): Statistical significance level. Default is 0.05.
 }
@@ -68,7 +71,25 @@ logical: if TRUE, hides most warning messages.  Default value is \code{FALSE}.
 
 }
 \details{
-The two-sided statistical power of treatment effect \eqn{\theta} (equal to H\%*\%fixed.treatment.effect if H is non-NULL) is
+Let \eqn{Y_i} denote a vector of observations for cluster \eqn{i}. The generalized linear mixed model formulation assumes
+\deqn{E(Y_i | b_i) = h(X\beta + Z_ib_i)}
+where \eqn{h} is a link function, \eqn{\beta} is a vector of fixed effects, \eqn{b_i} is a vector of random effects (in order, cluster, cluster*time, cluster*treatment) with \eqn{b_i \sim N(0,D)} and \eqn{X} and \eqn{Z} are design matricies for the fixed and random effects, respectively. Then Breslow and Clayton (1993) show that 
+\deqn{Var(\hat{\beta}) \approx \left( X^T V^{-1} X \right)^{-1}}
+where
+\deqn{V = W^b + ZDZ^T}
+where \eqn{W^b} is a diagonal matrix (\eqn{W^b} is approximated as \eqn{W^0} in all calculations). 
+
+An exponentially decaying autocorrelation structure (only available for cross-sectional sampling i.e. \code{zeta} = 0) is incorporated by modifying \eqn{V} to
+\deqn{V = (W^b + ZD1Z^T) * R + ZD2Z^T}
+where \eqn{*} denotes element-by-element matrix multiplication and, assuming there are random effects for cluster, cluster*time and cluster*treatment,
+
+\itemize{
+\item \eqn{D1_{ij} = D} for i and j <= J+1 (corresponding to the cluster and cluster*time random effects) and 0 otherwise \cr
+\item \eqn{D2_{ij} = D} for i or j > J+1 (corresponding to the cluster*treatment random effect) and 0 otherwise \cr
+\item \eqn{R} = a toeplitz matrix with elements equal to \code{ar}^m where     \eqn{m} = 0...J-1 is the distance from the main diagonal. 
+}
+
+The two-sided statistical power for treatment effect \eqn{\theta} (equal to \code{H}\%*\%\code{fixed.treatment.effect} if \code{H} is non-NULL) is
 \deqn{Pwr(\theta) = \Phi( \frac{Z - z_{1 - \alpha /2} \sqrt{V_0(\hat{\theta})}}{\sqrt{V_\alpha(\hat{\theta})}}) + 1 - \Phi( \frac{Z+ z_{1 - \alpha /2} \sqrt{V_0(\hat{\theta})}}{\sqrt{V_\alpha(\hat{\theta})}})},
 where \eqn{\Phi} is the cumulative distribution function of the standard normal distribution. 
 
@@ -77,6 +98,8 @@ The variance of  \eqn{\hat{\theta}} under the null is denoted as \eqn{V_0(\hat{\
 When the outcome is Gaussian, the method adopted by \code{swGlmPwr} coincides with that of \code{swPwr}, so power calculation for Gaussian outcomes is not included in \code{swGlmPwr} to avoid repetition. When the outcome is binomial, \code{swGlmPwr} performs power calculation on the natural scale (logit), while \code{swPwr} performs power calculation on the linear scale. 
 
 The value of zeta defines the samling scheme. When zeta = 0, cross-sectional sampling is assumed; if zeta > 0 then closed cohort sampling is assumed.
+
+Incomplete designs (e.g. staircase) can be specified by using the \code{swDsn} function with the \code{swBlk} argument to specify the incomplete design or by specifying a complete design with \code{swDsn} and using the \code{n} argument of swPwr to specify a matrix with 0 in the missing cluster-periods. Note that if the second approach is used then H must be either a scalar or a vector as long as the longest lag in the complete design. See the examples below. 
 }
 \value{
 numeric (scalar): \code{swGlmPwr} returns the power of treatment effect if retDATA = FALSE.
@@ -121,6 +144,9 @@ numeric (scalar): Standard deviation of random time effects on canonical scales 
 \item{$zeta}{
 numeric (scalar):  Standard deviation of individual random effects for closed cohort sampling on canonical scales (logit for binomial outcomes and log for Poisson outcomes).
 }
+ \item{ar}{
+numeric (scalar): Autocorrelation for exponential decay structure between periods within a cluster as described in Kasza et al (2019). Available for cross-sectional sampling only (i.e. zeta=0 and iac=0). See details.
+ }
 \item{$alpha}{
 numeric (scalar): Statistical significance level. Default is 0.05.
 }
@@ -136,6 +162,10 @@ numeric (scalar): Power of treatment effect using a simplified Laplace approxima
 }
 \references{
 Breslow NE and Clayton DG (1993). Approximate inference in generalized linear mixed models. Journal of the American Statistical Association, 88(421):9-25.
+
+Kasza J, Hemming K, Hooper R, Matthews JNS, Forbes AB. Impact of non-uniform correlation on sample size and power in multiple-period cluster randomized trials. Statistical Methods in Medical Research 2019a; 28: 703-716.
+
+Kasza J, Taljaard M, Forbes AB. Information content of stepped-wedge designs when treatment effect heterogeneity and/or implementation periods are present. Statistics in Medicine 2019b; 38:4686-4701.
 
 Kenny A, Voldal E, Xia F, Heagerty PJ, Hughes JP. Analysis of stepped wedge cluster randomized trials in the presence of a time-varying treatment effect. Statistics in Medicine, in press, 2022.
 
@@ -188,6 +218,27 @@ swGlmPwr(stdy, distn="binomial",n=10000,
          fixed.intercept=log(28.62/(2*100000)),fixed.time.effect = 1,
          fixed.treatment.effect = c(log(.6),log(.5)),
          tau=.31,eta=0,rho=0,gamma=0,alpha=.05,retDATA = FALSE)
+         
+#Incomplete design
+# These all give the same power
+design12 = swDsn(c(4,4,4),swBlk=matrix(c(0,1,1,NA,NA,NA,0,1,1,NA,NA,NA,0,1,1),3,5,byrow=TRUE))
+swGlmPwr(design12,distn="binomial",n=10,fixed.intercept=0,fixed.treatment.effect=c(.8,.8),
+         fixed.time.effect=0,H=c(.5,.5),tau=.1)
+swGlmPwr(design12,distn="binomial",n=10,fixed.intercept=0,fixed.treatment.effect=c(.8,.8),
+         fixed.time.effect=0,H=1,tau=.1) # H is automatically expanded and normalized
+#
+design12a = swDsn(c(4,4,4),extra.trt.time=1)
+nmat12a=matrix(c(rep(c(10,10,10,0,0),4),rep(c(0,10,10,10,0),4),rep(c(0,0,10,10,10),4)),12,5,
+               byrow=TRUE)
+#Note maximum exposure time is 4 by design even though there are no data for exposure times 3 and 4
+swGlmPwr(design12a,distn="binomial",n=nmat12a,fixed.intercept=0,
+         fixed.treatment.effect=c(.8,.8,.8,.8),fixed.time.effect=0,H=1,tau=.1) #OK
+swGlmPwr(design12a,distn="binomial",n=nmat12a,fixed.intercept=0,
+         fixed.treatment.effect=c(.8,.8,.8,.8),fixed.time.effect=0,H=c(1,1,0,0),tau=.1) #OK
+# The following generates an error; since design12a is a complete design with maximum lag 4,  
+# fixed.treatment.effect must be a vector length 4 and H must be a scalar or vector of length 4
+# swGlmPwr(design12a,distn="binomial",n=nmat12a,fixed.intercept=0,fixed.treatment.effect=c(.8,.8),
+#         fixed.time.effect=0,H=c(1,1),tau=.1) 
 
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
