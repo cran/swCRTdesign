@@ -234,7 +234,7 @@ swSim2 <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect
   time.var <- tmpTime
   ## cluster variable [VECTOR] (for each cluster, each time point, and each observation)
   cluster.var <- tmpCluster
-   ## Make a dummy response variable for simulate_new (will be replaced with simulated response)
+   ## Make a dummy response variable for simulate (will be replaced with simulated response)
   response.var = runif(length(cluster.var),0,1) 
   ## swData [DATAFRAME] (result of function)
   if (zeta > 0) {
@@ -242,7 +242,7 @@ swSim2 <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect
     individ.var <- tmpIndivid
   }
   ############
-  # Set up parameters for simulate_new
+  # Set up parameters for simulate
   # Fixed effects
   if (length(time.effect) == 1) {
     time.effectVec <- rep(time.effect, design$total.time)
@@ -268,21 +268,25 @@ swSim2 <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect
       junk = data.frame(response.var,ftime.var,ftx.var,itx.var,ftimeontx.var,fcluster.var)  
     }
   itot = ifelse(length(theta)==1,0,1)
+  if (!missing(sigma)) {scale = sigma} else {scale=1}
   if (ar==1){
     # No autoregressive
     model = as.formula(paste0(" ~ "," ftime.var",
                             ifelse(itot==0,"+ ftx.var","+ ftimeontx.var"),
-                            ifelse(tau>0&(eta==0|(eta>0&rho==0))," + (1|fcluster.var)",""),
-                            ifelse(gamma>0," + (1|fcluster.var:ftime.var)",""),
                             ifelse(eta>0&rho!=0," + (itx.var | fcluster.var)",""),
                             ifelse(eta>0&rho==0," + (0 + itx.var | fcluster.var)",""),
+                            ifelse(tau>0&(eta==0|(eta>0&rho==0))," + (1|fcluster.var)",""),
+                            ifelse(gamma>0," + (1|fcluster.var:ftime.var)",""),
                             ifelse(zeta>0,"+ (1|findivid.var)",""))) 
     varcomps = NULL
-    if (tau>0&(eta==0|(eta>0&rho==0))) varcomps=c(varcomps,log(tau))
-    if (gamma>0&ar==1) varcomps=c(varcomps,log(gamma))
-    if (eta>0&rho!=0) varcomps=c(varcomps,log(tau),log(eta),rho/sqrt(1-rho^2))
-    if (eta>0&rho==0) varcomps=c(varcomps,log(eta))
-    if (zeta>0) varcomps=c(varcomps,log(zeta))
+    if (zeta>0) varcomps=c(varcomps,zeta/scale)
+    if (gamma>0) varcomps=c(varcomps,gamma/scale)
+    if (tau>0&eta==0) varcomps=c(varcomps,tau/scale)
+    if (eta>0&rho!=0) {
+      bbb = chol(matrix(c(tau^2,rho*tau*eta,rho*tau*eta,eta^2),2,2)/scale^2)
+      varcomps=c(varcomps,bbb[upper.tri(bbb,diag=TRUE)])
+      }
+    if (eta>0&rho==0) varcomps=c(varcomps,tau/scale,eta/scale)
   } else {
     # Autoregressive
     model = as.formula(paste0(" ~ "," ftime.var",
@@ -291,17 +295,16 @@ swSim2 <- function (design, family, log.gaussian=FALSE, n, mu0, mu1, time.effect
 #                              ,ifelse(gamma>0," + (1|fcluster.var:ftime.var)",""))) # this only contributes to diagonal of covariance matrix so no need to apply ar1 to this term
     # Random effects
     varcomps = NULL
-    if (tau>0) varcomps=c(varcomps,log(tau))
-    varcomps = c(varcomps,ar/sqrt(1-ar^2))
-#    if (gamma>0) varcomps=c(varcomps,log(gamma))
+    if (tau>0) varcomps=c(varcomps,tau/scale)
+    varcomps = c(varcomps,ar)
   }
   if (distn=="gaussian") {
-    params = list(beta=fixedeffects,betadisp=log(sigma),theta=varcomps)
-    } else {
-    params = list(beta=fixedeffects,theta=varcomps)
-    }
+    params = list(beta=fixedeffects,sigma=sigma,par=varcomps)
+  } else {
+    params = list(beta=fixedeffects,par=varcomps)
+  }
   ##########
-  sim_obj = simulate_new(model,nsim=1,seed=NULL,family=family,newdata=junk,newparams=params)
+  sim_obj = simulate.formula(model,nsim=1,seed=NULL,family=family,newdata=junk,newparams=params)
   junk$response.var = sim_obj[[1]]
    ## returning swData [DATAFRAME]
   ## swData [DATAFRAME] (result of function)

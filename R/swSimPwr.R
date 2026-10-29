@@ -2,8 +2,7 @@ swSimPwr <- function (design, family, n, mu0, mu1, time.effect=0, H = NULL, sigm
                       eta=0, rho=0, gamma=0, zeta=0, icc=0, cac=1, iac=0, ar=1, alpha = 0.05, nsim = 500, retDATA = FALSE, silent = FALSE, counter=TRUE)
 {
 #
-#Last update: 2/11/25, v. 4.1, Jim Hughes
-#  library(glmmTMB)
+#Last update: 10/7/26, v. 4.2, Jim Hughes
   ##########
   # Helper functions
   ##########
@@ -275,47 +274,57 @@ swSimPwr <- function (design, family, n, mu0, mu1, time.effect=0, H = NULL, sigm
       data$ftimeontx.var = as.factor(data$timeOnTx.var)
       #
       if (distn == 'gaussian'){
-        rslt = suppressMessages(glmmTMB::glmmTMB(model,data=data)) 
-        msg[i] = rslt$fit$message
-        code[i] = rslt$fit$convergence
+        rslt = suppressMessages(lmerTest::lmer(model,data=data))
+        if (length(rslt@optinfo$conv$lme4$messages)>0)  msg[i] = paste0("[1] ",rslt@optinfo$conv$lme4$messages[1])
+        if (length(rslt@optinfo$conv$lme4$messages)>1) {
+          for (k in 2:length(rslt@optinfo$conv$lme4$messages)){
+            msg[i] = paste0(msg[i]," [",k,"] ",rslt@optinfo$conv$lme4$messages[k])
+          }}
+        if (!is.null(rslt@optinfo$conv$lme4$code)) code[i]=rslt@optinfo$conv$lme4$code
         if (is.null(H)){
           for (j in 1:design$nTxLev){
             if (frac) {varname="ftx.var"} else {varname=paste0("ftx.var",j)}
-              est[i,j] = summary(rslt)$coef$cond[varname,"Estimate"]
-              se[i,j] = summary(rslt)$coef$cond[varname,"Std. Error"]
-              pval[i,j] = summary(rslt)$coef$cond[varname,"Pr(>|z|)"]            
-            }
+            est[i,j] = summary(rslt)$coef[varname,"Estimate"]
+            se[i,j] = summary(rslt)$coef[varname,"Std. Error"]
+            df[i,j] = summary(rslt)$coef[varname,"df"]
+            pval[i,j] = summary(rslt)$coef[varname,"Pr(>|t|)"]
+          } 
         } else {
-            est[i,1] = sum(glmmTMB::fixef(rslt)$cond*Hext)
-            se[i,1] = as.numeric(sqrt(t(Hext)%*%vcov(rslt)$cond%*%Hext))
-            z = abs(est[i,1]/se[i,1])
-            pval[i,1] = 2*(1-pnorm(z))
+          contrast = lmerTest::contest(rslt,as.vector(Hext))
+          est[i,1] = sum(lme4::fixef(rslt)*Hext)
+          se[i,1] = as.numeric(sqrt(t(Hext)%*%vcov(rslt)%*%Hext))
+          df[i,1] = as.numeric(contrast["DenDF"])
+          pval[i,1] = as.numeric(contrast["Pr(>F)"])
         }
       } else {
         if (distn =="binomial" | distn == "poisson") {
-          rslt = suppressMessages(glmmTMB::glmmTMB(model,data=data,family=family))      
-          msg[i] = rslt$fit$message
-          code[i] = rslt$fit$convergence
+          rslt = suppressMessages(lme4::glmer(model,data=data,family=family))
+          if (length(rslt@optinfo$conv$lme4$messages)>0)  msg[i] = paste0("[1] ",rslt@optinfo$conv$lme4$messages[1])
+          if (length(rslt@optinfo$conv$lme4$messages)>1) {
+            for (k in 2:length(rslt@optinfo$conv$lme4$messages)){
+              msg[i] = paste0(msg[i]," [",k,"] ",rslt@optinfo$conv$lme4$messages[k])
+            }}
+          if (!is.null(rslt@optinfo$conv$lme4$code)) code[i]=rslt@optinfo$conv$lme4$code
           if (is.null(H)){
             for (j in 1:design$nTxLev){
               if (frac) {varname="ftx.var"} else {varname=paste0("ftx.var",j)}
-                est[i,j] = summary(rslt)$coef$cond[varname,"Estimate"]
-                se[i,j] = summary(rslt)$coef$cond[varname,"Std. Error"]
-                pval[i,j] = summary(rslt)$coef$cond[varname,"Pr(>|z|)"]             
+              est[i,j] = summary(rslt)$coef[varname,"Estimate"]
+              se[i,j] = summary(rslt)$coef[varname,"Std. Error"]
+              pval[i,j] = summary(rslt)$coef[varname,"Pr(>|z|)"]
             }
           } else {
-            est[i,1] = sum(glmmTMB::fixef(rslt)$cond*Hext)
-            se[i,1] = as.numeric(sqrt(t(Hext)%*%vcov(rslt)$cond%*%Hext))
-            z = est[i,1]/se[i,1]
+            est[i,1] = sum(lme4::fixef(rslt)*Hext)
+            se[i,1] = as.numeric(sqrt(t(Hext)%*%vcov(rslt)%*%Hext))
+            z = abs(est[i,1]/se[i,1])
             pval[i,1] = 2*(1-pnorm(z))
           }
         } else {
           stop("Distribution ",distn," not recognized")
         }}
-        vtemp = glmmTMB::VarCorr(rslt)$cond
+        vtemp = lme4::VarCorr(rslt)
         varcomp[i,] = c((if (tau>0) {attr(vtemp$fcluster,"stddev")[1]} else {NULL}),
                          attr(vtemp$fcluster,"correlation")[1,2],
-                         (if (distn == 'gaussian') {attr(vtemp,"sc")} else {NULL}))
+                         (if (distn == 'gaussian') {sigma(rslt)} else {NULL}))
        
     }  
     cnames = c((if (tau>0) {"tau"} else {NULL}),
